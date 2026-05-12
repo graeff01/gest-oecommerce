@@ -26,14 +26,26 @@ async function main() {
     }
   });
 
+  const existing = await prisma.storeSettings.findUnique({ where: { id: 1 } });
+  const migratedImageUrl =
+    existing?.loginImageUrl && existing.loginImageUrl.startsWith("/uploads/")
+      ? existing.loginImageUrl.replace("/uploads/", "/api/uploads/")
+      : undefined;
+
   await prisma.storeSettings.upsert({
     where: { id: 1 },
-    update: { storeName: STORE_NAME },
+    update: {
+      storeName: STORE_NAME,
+      ...(migratedImageUrl ? { loginImageUrl: migratedImageUrl } : {})
+    },
     create: { id: 1, storeName: STORE_NAME }
   });
 
   console.log(`[seed] Usuário de teste pronto: ${TEST_EMAIL} / ${TEST_PASSWORD}`);
   console.log(`[seed] Loja: ${STORE_NAME}`);
+  if (migratedImageUrl) {
+    console.log(`[seed] Migrated login image URL to ${migratedImageUrl}`);
+  }
 }
 
 main()
