@@ -16,8 +16,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Wear — Gestão",
-  description: "Sistema de gestão Wear: estoque, vendas, clientes e crediário em um só lugar."
+  title: "LA WEAR — Gestão",
+  description: "Sistema de gestão LA WEAR: estoque, vendas, clientes e crediário em um só lugar."
 };
 
 const themeInitScript = `

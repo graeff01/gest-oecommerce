@@ -234,7 +234,7 @@ model AuditLog {
 
 model StoreSettings {
   id             Int      @id @default(1)
-  storeName      String   @default("Wear")
+  storeName      String   @default("LA WEAR")
   storeTagline   String?
   loginImageUrl  String?
   primaryColor   String?
