@@ -2,7 +2,7 @@ export function PageHeader({
   title,
   description,
   action,
-  eyebrow = "Ateliê Commerce"
+  eyebrow = "Wear"
 }: {
   title: string;
   description: string;

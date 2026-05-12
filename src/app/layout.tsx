@@ -16,8 +16,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Ateliê Commerce — Gestão moderna",
-  description: "Sistema de gestão para ecommerce de moda com visual elegante e operação completa."
+  title: "Wear — Gestão",
+  description: "Sistema de gestão Wear: estoque, vendas, clientes e crediário em um só lugar."
 };
 
 const themeInitScript = `

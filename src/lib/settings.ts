@@ -9,7 +9,7 @@ export type StoreSettingsData = {
 };
 
 const FALLBACK: StoreSettingsData = {
-  storeName: "Ateliê Commerce",
+  storeName: "Wear",
   storeTagline: null,
   loginImageUrl: null
 };

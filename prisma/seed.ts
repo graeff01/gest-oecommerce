@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 const TEST_EMAIL = "teste@cliente.com";
 const TEST_PASSWORD = "Teste@2026";
+const STORE_NAME = "Wear";
 
 async function main() {
   const passwordHash = await bcrypt.hash(TEST_PASSWORD, 12);
@@ -25,7 +26,14 @@ async function main() {
     }
   });
 
+  await prisma.storeSettings.upsert({
+    where: { id: 1 },
+    update: { storeName: STORE_NAME },
+    create: { id: 1, storeName: STORE_NAME }
+  });
+
   console.log(`[seed] Usuário de teste pronto: ${TEST_EMAIL} / ${TEST_PASSWORD}`);
+  console.log(`[seed] Loja: ${STORE_NAME}`);
 }
 
 main()
