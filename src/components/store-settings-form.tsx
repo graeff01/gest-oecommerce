@@ -34,11 +34,30 @@ export function StoreSettingsForm({ initialData }: Props) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Falha ao enviar imagem.");
       setLoginImageUrl(data.url);
+
+      const persistData = new FormData();
+      persistData.append("storeName", storeName);
+      persistData.append("storeTagline", storeTagline);
+      persistData.append("loginImageUrl", data.url);
+      await updateStoreSettingsAction(persistData);
+      setSavedAt(Date.now());
+      window.setTimeout(() => setSavedAt(null), 2400);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Falha ao enviar imagem.");
     } finally {
       setUploading(false);
     }
+  }
+
+  async function handleRemoveImage() {
+    setLoginImageUrl("");
+    const persistData = new FormData();
+    persistData.append("storeName", storeName);
+    persistData.append("storeTagline", storeTagline);
+    persistData.append("loginImageUrl", "");
+    await updateStoreSettingsAction(persistData);
+    setSavedAt(Date.now());
+    window.setTimeout(() => setSavedAt(null), 2400);
   }
 
   function submit() {
@@ -183,7 +202,7 @@ export function StoreSettingsForm({ initialData }: Props) {
             <span className="truncate text-[0.74rem] font-medium text-muted">{loginImageUrl}</span>
             <button
               type="button"
-              onClick={() => setLoginImageUrl("")}
+              onClick={handleRemoveImage}
               className="inline-flex items-center gap-1.5 rounded-lg bg-danger-soft px-2.5 py-1 text-[0.74rem] font-semibold text-danger transition hover:bg-danger/15"
             >
               <Trash2 size={12} /> Remover

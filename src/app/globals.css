@@ -210,32 +210,34 @@ h1, h2, h3, h4, h5 {
 }
 
 /* inputs e selects */
-.field {
-  width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(var(--border));
-  background: rgb(var(--surface));
-  padding: 0.7rem 0.9rem;
-  color: rgb(var(--fg));
-  outline: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+@layer components {
+  .field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(var(--border));
+    background: rgb(var(--surface));
+    padding: 0.7rem 0.9rem;
+    color: rgb(var(--fg));
+    outline: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  }
+
+  .field::placeholder { color: rgb(var(--subtle)); font-weight: 400; }
+
+  .field:hover {
+    border-color: rgb(var(--border-strong));
+  }
+
+  .field:focus {
+    border-color: rgb(var(--primary));
+    background: rgb(var(--surface));
+    box-shadow: 0 0 0 4px rgb(var(--primary) / 0.14);
+  }
+
+  textarea.field { resize: vertical; min-height: 5rem; }
 }
-
-.field::placeholder { color: rgb(var(--subtle)); font-weight: 400; }
-
-.field:hover {
-  border-color: rgb(var(--border-strong));
-}
-
-.field:focus {
-  border-color: rgb(var(--primary));
-  background: rgb(var(--surface));
-  box-shadow: 0 0 0 4px rgb(var(--primary) / 0.14);
-}
-
-textarea.field { resize: vertical; min-height: 5rem; }
 
 /* labels: subtítulo elegante, sem maiúsculas berrantes */
 .label {
