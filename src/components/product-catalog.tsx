@@ -440,10 +440,10 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={{ duration: 0.24, ease: [0.22, 0.9, 0.32, 1] }}
-              className="max-h-[92dvh] w-full max-w-6xl overflow-hidden rounded-3xl border border-border bg-elevated shadow-elev"
+              className="flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-elev"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-4 border-b border-border bg-surface/60 p-5">
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-surface/60 p-5">
                 <div className="flex items-start gap-4">
                   <ProductIcon product={selectedProduct} />
                   <div>
@@ -477,8 +477,8 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                 </div>
               </div>
 
-              <div className="grid max-h-[calc(92dvh-110px)] gap-0 overflow-y-auto xl:grid-cols-[1fr_380px]">
-                <section className="grid content-start gap-4 p-5">
+              <div className="grid min-h-0 flex-1 overflow-y-auto xl:grid-cols-[1fr_380px] xl:overflow-hidden">
+                <section className="grid content-start gap-4 overflow-y-auto p-5">
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
                       <span className="grid h-9 w-9 place-items-center rounded-xl bg-success-soft text-success">
@@ -601,7 +601,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
 
                 <form
                   action={createVariantAction}
-                  className="grid content-start gap-3 border-t border-border bg-surface-2/30 p-5 xl:border-l xl:border-t-0"
+                  className="grid content-start gap-3 overflow-y-auto border-t border-border bg-surface-2/30 p-5 xl:border-l xl:border-t-0"
                 >
                   <input type="hidden" name="productId" value={selectedProduct.id} />
                   <div className="flex items-center gap-3">

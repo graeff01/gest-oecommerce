@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ReceiptText } from "lucide-react";
+import { AlertTriangle, ReceiptText } from "lucide-react";
 import { createOrderAction } from "@/app/(app)/actions/orders";
 import { money } from "@/lib/format";
 
@@ -23,6 +23,9 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
   const defaultFirstDue = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate())
     .toISOString()
     .slice(0, 10);
+
+  const inStock = variants.filter((v) => v.stockQuantity > 0);
+  const outOfStock = variants.filter((v) => v.stockQuantity <= 0);
 
   return (
     <form action={createOrderAction} className="surface-card grid gap-4 p-5">
@@ -48,13 +51,33 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
       </label>
       <label className="label">
         Produto
-        <select className="field" name="variantId" required>
-          {variants.map((variant) => (
-            <option key={variant.id} value={variant.id}>
-              {variant.product.name} · {variant.color}/{variant.size} · {money(variant.salePrice)} · {variant.stockQuantity} un.
-            </option>
-          ))}
-        </select>
+        {variants.length === 0 ? (
+          <div className="field flex items-center gap-2 text-muted">
+            <AlertTriangle size={14} className="text-warning shrink-0" />
+            Nenhum produto cadastrado ainda
+          </div>
+        ) : (
+          <select className="field" name="variantId" required>
+            {inStock.length > 0 && (
+              <optgroup label="— Em estoque">
+                {inStock.map((variant) => (
+                  <option key={variant.id} value={variant.id}>
+                    {variant.product.name} · {variant.color}/{variant.size} · {money(variant.salePrice)} · {variant.stockQuantity} un.
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {outOfStock.length > 0 && (
+              <optgroup label="— Sem estoque">
+                {outOfStock.map((variant) => (
+                  <option key={variant.id} value={variant.id} disabled>
+                    {variant.product.name} · {variant.color}/{variant.size} · esgotado
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        )}
       </label>
       <div className="grid gap-3 md:grid-cols-2">
         <label className="label">

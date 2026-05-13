@@ -27,8 +27,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
     prisma.customer.findMany({ orderBy: { name: "asc" } }),
     prisma.productVariant.findMany({
       include: { product: true },
-      where: { stockQuantity: { gt: 0 } },
-      orderBy: { sku: "asc" }
+      orderBy: [{ product: { name: "asc" } }, { sku: "asc" }]
     })
   ]);
 
