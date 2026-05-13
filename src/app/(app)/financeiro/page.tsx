@@ -3,15 +3,34 @@ import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
+import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
+import { PAYMENT_METHODS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { createFinancialTransactionAction } from "../actions";
+import { createFinancialTransactionAction, deleteFinancialTransactionAction } from "../actions";
 
-export default async function FinancePage() {
+const PAGE_SIZE = 30;
+
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await connection();
-  const transactions = await prisma.financialTransaction.findMany({ orderBy: { createdAt: "desc" } });
-  const revenue = transactions.filter((item) => item.type === "REVENUE").reduce((sum, item) => sum + Number(item.amount), 0);
-  const expenses = transactions.filter((item) => item.type === "EXPENSE").reduce((sum, item) => sum + Number(item.amount), 0);
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+
+  const [totals, transactions, total] = await Promise.all([
+    prisma.financialTransaction.groupBy({
+      by: ["type"],
+      _sum: { amount: true }
+    }),
+    prisma.financialTransaction.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE
+    }),
+    prisma.financialTransaction.count()
+  ]);
+
+  const revenue = Number(totals.find((t) => t.type === "REVENUE")?._sum.amount ?? 0);
+  const expenses = Number(totals.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
   const balance = revenue - expenses;
 
   return (
@@ -63,12 +82,9 @@ export default async function FinancePage() {
             Pagamento
             <select className="field" name="paymentMethod">
               <option value="">Não definido</option>
-              <option value="PIX">Pix</option>
-              <option value="CREDIT_CARD">Cartão crédito</option>
-              <option value="DEBIT_CARD">Cartão débito</option>
-              <option value="CASH">Dinheiro</option>
-              <option value="BANK_SLIP">Boleto</option>
-              <option value="MARKETPLACE">Marketplace</option>
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
             </select>
           </label>
           <div className="grid gap-3 md:grid-cols-2">
@@ -85,45 +101,55 @@ export default async function FinancePage() {
           <button className="button-primary">Salvar lançamento</button>
         </form>
 
-        <div className="table-shell overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>Título</th>
-                <th>Categoria</th>
-                <th className="text-right">Valor</th>
-                <th>Pago</th>
-                <th>Venc.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.length ? (
-                transactions.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <span className={item.type === "REVENUE" ? "status-pill" : "status-pill pill-danger"}>
-                        {item.type === "REVENUE" ? "Receita" : "Gasto"}
-                      </span>
-                    </td>
-                    <td className="font-semibold text-fg">{item.title}</td>
-                    <td>
-                      <span className="chip">{item.category}</span>
-                    </td>
-                    <td className="text-right font-semibold text-fg">{money(item.amount)}</td>
-                    <td className="text-muted">{date(item.paidAt)}</td>
-                    <td className="text-muted">{date(item.dueDate)}</td>
-                  </tr>
-                ))
-              ) : (
+        <div className="grid gap-2">
+          <div className="table-shell overflow-x-auto">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted">
-                    Nenhum lançamento financeiro registrado.
-                  </td>
+                  <th>Tipo</th>
+                  <th>Título</th>
+                  <th>Categoria</th>
+                  <th className="text-right">Valor</th>
+                  <th>Pago</th>
+                  <th>Venc.</th>
+                  <th></th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {transactions.length ? (
+                  transactions.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <span className={item.type === "REVENUE" ? "status-pill" : "status-pill pill-danger"}>
+                          {item.type === "REVENUE" ? "Receita" : "Gasto"}
+                        </span>
+                      </td>
+                      <td className="font-semibold text-fg">{item.title}</td>
+                      <td>
+                        <span className="chip">{item.category}</span>
+                      </td>
+                      <td className="text-right font-semibold text-fg">{money(item.amount)}</td>
+                      <td className="text-muted">{date(item.paidAt)}</td>
+                      <td className="text-muted">{date(item.dueDate)}</td>
+                      <td>
+                        <form action={deleteFinancialTransactionAction} onSubmit={(e) => { if (!confirm("Excluir este lançamento?")) e.preventDefault(); }}>
+                          <input type="hidden" name="id" value={item.id} />
+                          <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">Excluir</button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="py-10 text-center text-muted">
+                      Nenhum lançamento financeiro registrado.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Pagination total={total} page={page} pageSize={PAGE_SIZE} />
         </div>
       </section>
     </AnimatedShell>

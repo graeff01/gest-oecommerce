@@ -96,3 +96,13 @@ export async function requireUser() {
 
   return user;
 }
+
+export async function requireRole(roles: string[]) {
+  const user = await requireUser();
+
+  if (!roles.includes(user.role)) {
+    throw new Error(`Acesso negado. Requer uma das funções: ${roles.join(", ")}.`);
+  }
+
+  return user;
+}

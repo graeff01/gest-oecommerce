@@ -10,15 +10,17 @@ import {
   Footprints,
   Layers3,
   PackagePlus,
+  Pencil,
   Plus,
   Search,
   Shirt,
   ShoppingBag,
   Tag,
+  Trash2,
   X
 } from "lucide-react";
 import { money } from "@/lib/format";
-import { createVariantAction } from "@/app/(app)/actions";
+import { createVariantAction, updateVariantAction, deleteVariantAction, deleteProductAction } from "@/app/(app)/actions";
 
 type StockFilter = "all" | "low" | "out";
 
@@ -101,6 +103,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
   const [selectedSection, setSelectedSection] = useState<string | null>("__all__");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
 
   const rows = useMemo(() => buildRows(products), [products]);
 
@@ -455,13 +458,21 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                     </div>
                   </div>
                 </div>
-                <button
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-muted transition hover:bg-danger-soft hover:text-danger"
-                  onClick={() => setSelectedProductId(null)}
-                  title="Fechar"
-                >
-                  <X size={17} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <form action={deleteProductAction} onSubmit={(e) => { if (!confirm("Excluir este produto e todas as suas variações?")) e.preventDefault(); }}>
+                    <input type="hidden" name="id" value={selectedProduct.id} />
+                    <button type="submit" className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-muted transition hover:bg-danger-soft hover:text-danger" title="Excluir produto">
+                      <Trash2 size={16} />
+                    </button>
+                  </form>
+                  <button
+                    className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-muted transition hover:bg-danger-soft hover:text-danger"
+                    onClick={() => { setSelectedProductId(null); setEditingVariantId(null); }}
+                    title="Fechar"
+                  >
+                    <X size={17} />
+                  </button>
+                </div>
               </div>
 
               <div className="grid max-h-[calc(92dvh-110px)] gap-0 overflow-y-auto xl:grid-cols-[1fr_380px]">
@@ -503,36 +514,52 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                     {selectedProduct.variants.length ? (
                       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                         {selectedProduct.variants.map((variant) => (
-                          <div
-                            key={variant.id}
-                            className="rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/30 hover:shadow-soft"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <strong className="font-display text-[0.92rem] font-semibold tracking-tight text-fg">
-                                {variant.color} · {variant.size}
-                              </strong>
-                              <span
-                                className={
-                                  variant.stockQuantity <= variant.minStock
-                                    ? "status-pill pill-danger"
-                                    : "status-pill"
-                                }
-                              >
-                                {variant.stockQuantity} un.
-                              </span>
-                            </div>
-                            <p className="mt-2 text-[0.74rem] font-normal text-muted">{variant.sku}</p>
-                            <div className="mt-3 grid grid-cols-2 gap-2 text-[0.74rem] font-normal text-muted">
-                              <span>
-                                Custo: <b className="text-fg">{money(variant.costPrice)}</b>
-                              </span>
-                              <span>
-                                Venda: <b className="text-fg">{money(variant.salePrice)}</b>
-                              </span>
-                              <span>
-                                Mínimo: <b className="text-fg">{variant.minStock}</b>
-                              </span>
-                            </div>
+                          <div key={variant.id} className="rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/30 hover:shadow-soft">
+                            {editingVariantId === variant.id ? (
+                              <form action={updateVariantAction} onSubmit={() => setEditingVariantId(null)} className="grid gap-2">
+                                <input type="hidden" name="id" value={variant.id} />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="label text-[0.72rem]">SKU<input className="field h-7 py-1 text-xs" name="sku" defaultValue={variant.sku} required /></label>
+                                  <label className="label text-[0.72rem]">Cor<input className="field h-7 py-1 text-xs" name="color" defaultValue={variant.color} required /></label>
+                                  <label className="label text-[0.72rem]">Tam.<input className="field h-7 py-1 text-xs" name="size" defaultValue={variant.size} required /></label>
+                                  <label className="label text-[0.72rem]">Mínimo<input className="field h-7 py-1 text-xs" name="minStock" type="number" min="0" defaultValue={variant.minStock} required /></label>
+                                  <label className="label text-[0.72rem]">Custo<input className="field h-7 py-1 text-xs" name="costPrice" type="number" step="0.01" defaultValue={variant.costPrice} required /></label>
+                                  <label className="label text-[0.72rem]">Venda<input className="field h-7 py-1 text-xs" name="salePrice" type="number" step="0.01" defaultValue={variant.salePrice} required /></label>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button type="submit" className="button-primary h-7 flex-1 px-2 py-0 text-xs">Salvar</button>
+                                  <button type="button" onClick={() => setEditingVariantId(null)} className="h-7 flex-1 rounded-lg border border-border bg-surface-2 px-2 text-xs text-muted transition hover:text-fg">Cancelar</button>
+                                </div>
+                              </form>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-between gap-2">
+                                  <strong className="font-display text-[0.92rem] font-semibold tracking-tight text-fg">
+                                    {variant.color} · {variant.size}
+                                  </strong>
+                                  <div className="flex items-center gap-1">
+                                    <span className={variant.stockQuantity <= variant.minStock ? "status-pill pill-danger" : "status-pill"}>
+                                      {variant.stockQuantity} un.
+                                    </span>
+                                    <button type="button" onClick={() => setEditingVariantId(variant.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-primary-soft hover:text-primary" title="Editar variação">
+                                      <Pencil size={13} />
+                                    </button>
+                                    <form action={deleteVariantAction} onSubmit={(e) => { if (!confirm("Excluir esta variação?")) e.preventDefault(); }}>
+                                      <input type="hidden" name="id" value={variant.id} />
+                                      <button type="submit" className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-danger-soft hover:text-danger" title="Excluir variação">
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </form>
+                                  </div>
+                                </div>
+                                <p className="mt-2 text-[0.74rem] font-normal text-muted">{variant.sku}</p>
+                                <div className="mt-3 grid grid-cols-2 gap-2 text-[0.74rem] font-normal text-muted">
+                                  <span>Custo: <b className="text-fg">{money(variant.costPrice)}</b></span>
+                                  <span>Venda: <b className="text-fg">{money(variant.salePrice)}</b></span>
+                                  <span>Mínimo: <b className="text-fg">{variant.minStock}</b></span>
+                                </div>
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>

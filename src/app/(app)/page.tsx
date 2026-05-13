@@ -12,17 +12,9 @@ import { AnimatedShell } from "@/components/animated-shell";
 import { MetricCard } from "@/components/metric-card";
 import { SalesChart } from "@/components/sales-chart";
 import { getSession } from "@/lib/auth";
+import { ORDER_STATUS_LABELS } from "@/lib/constants";
 import { getDashboardData } from "@/lib/dashboard";
 import { firstName, greeting, money } from "@/lib/format";
-
-const statusLabel: Record<string, string> = {
-  NEW: "Novo",
-  PAID: "Pago",
-  PICKING: "Separando",
-  SHIPPED: "Enviado",
-  DELIVERED: "Entregue",
-  CANCELED: "Cancelado"
-};
 
 export default async function DashboardPage() {
   await connection();
@@ -128,7 +120,7 @@ export default async function DashboardPage() {
                         <td className="font-semibold text-fg">{order.code}</td>
                         <td>{order.customer?.name ?? "Venda avulsa"}</td>
                         <td>
-                          <span className="status-pill">{statusLabel[order.status] ?? order.status}</span>
+                          <span className="status-pill">{ORDER_STATUS_LABELS[order.status] ?? order.status}</span>
                         </td>
                         <td className="text-right font-semibold text-fg">{money(order.total)}</td>
                       </tr>

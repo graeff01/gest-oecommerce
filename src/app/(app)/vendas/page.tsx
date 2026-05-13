@@ -2,33 +2,26 @@ import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { OrderForm } from "@/components/order-form";
 import { PageHeader } from "@/components/page-header";
+import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
+import { cancelOrderAction } from "./actions/orders";
 
-const statusLabel: Record<string, string> = {
-  NEW: "Novo",
-  PAID: "Pago",
-  PICKING: "Separando",
-  SHIPPED: "Enviado",
-  DELIVERED: "Entregue",
-  CANCELED: "Cancelado"
-};
+const PAGE_SIZE = 20;
 
-const statusTone: Record<string, string> = {
-  NEW: "status-pill pill-info",
-  PAID: "status-pill",
-  PICKING: "status-pill pill-warning",
-  SHIPPED: "status-pill pill-primary",
-  DELIVERED: "status-pill",
-  CANCELED: "status-pill pill-danger"
-};
-
-export default async function SalesPage() {
+export default async function SalesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await connection();
-  const [orders, customers, variants] = await Promise.all([
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+
+  const [total, orders, customers, variants] = await Promise.all([
+    prisma.order.count(),
     prisma.order.findMany({
       include: { customer: true, items: { include: { variant: { include: { product: true } } } } },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE
     }),
     prisma.customer.findMany({ orderBy: { name: "asc" } }),
     prisma.productVariant.findMany({
@@ -57,45 +50,57 @@ export default async function SalesPage() {
           }))}
         />
 
-        <div className="table-shell overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Pedido</th>
-                <th>Cliente</th>
-                <th>Canal</th>
-                <th>Status</th>
-                <th className="text-right">Total</th>
-                <th>Data</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length ? (
-                orders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="font-semibold text-fg">{order.code}</td>
-                    <td>{order.customer?.name ?? "Avulsa"}</td>
-                    <td>
-                      <span className="chip">{order.channel}</span>
-                    </td>
-                    <td>
-                      <span className={statusTone[order.status] ?? "status-pill"}>
-                        {statusLabel[order.status] ?? order.status}
-                      </span>
-                    </td>
-                    <td className="text-right font-semibold text-fg">{money(order.total)}</td>
-                    <td className="text-muted">{date(order.createdAt)}</td>
-                  </tr>
-                ))
-              ) : (
+        <div className="grid gap-2">
+          <div className="table-shell overflow-x-auto">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted">
-                    Nenhuma venda registrada ainda. Use o formulário ao lado para criar a primeira.
-                  </td>
+                  <th>Pedido</th>
+                  <th>Cliente</th>
+                  <th>Canal</th>
+                  <th>Status</th>
+                  <th className="text-right">Total</th>
+                  <th>Data</th>
+                  <th></th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {orders.length ? (
+                  orders.map((order) => (
+                    <tr key={order.id}>
+                      <td className="font-semibold text-fg">{order.code}</td>
+                      <td>{order.customer?.name ?? "Avulsa"}</td>
+                      <td>
+                        <span className="chip">{order.channel}</span>
+                      </td>
+                      <td>
+                        <span className={ORDER_STATUS_TONES[order.status] ?? "status-pill"}>
+                          {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                        </span>
+                      </td>
+                      <td className="text-right font-semibold text-fg">{money(order.total)}</td>
+                      <td className="text-muted">{date(order.createdAt)}</td>
+                      <td>
+                        {order.status !== "CANCELED" && order.status !== "DELIVERED" && (
+                          <form action={cancelOrderAction} onSubmit={(e) => { if (!confirm("Cancelar este pedido? O estoque será restaurado.")) e.preventDefault(); }}>
+                            <input type="hidden" name="id" value={order.id} />
+                            <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">Cancelar</button>
+                          </form>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="py-10 text-center text-muted">
+                      Nenhuma venda registrada ainda. Use o formulário ao lado para criar a primeira.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Pagination total={total} page={page} pageSize={PAGE_SIZE} />
         </div>
       </section>
     </AnimatedShell>
