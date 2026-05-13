@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, Shirt, X } from "lucide-react";
-import { createProductAction } from "@/app/(app)/actions";
+import { createProductAction } from "@/app/(app)/actions/products";
 
 export function ProductCreateModal() {
   const [open, setOpen] = useState(false);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ReceiptText } from "lucide-react";
-import { createOrderAction } from "@/app/(app)/actions";
+import { createOrderAction } from "@/app/(app)/actions/orders";
 import { money } from "@/lib/format";
 
 type Customer = { id: string; name: string };

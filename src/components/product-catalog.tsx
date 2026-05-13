@@ -20,7 +20,7 @@ import {
   X
 } from "lucide-react";
 import { money } from "@/lib/format";
-import { createVariantAction, updateVariantAction, deleteVariantAction, deleteProductAction } from "@/app/(app)/actions";
+import { createVariantAction, updateVariantAction, deleteVariantAction, deleteProductAction } from "@/app/(app)/actions/products";
 
 type StockFilter = "all" | "low" | "out";
 

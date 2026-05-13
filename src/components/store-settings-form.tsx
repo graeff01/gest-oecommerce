@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { ImagePlus, Loader2, Save, Sparkles, Store, Trash2 } from "lucide-react";
-import { updateStoreSettingsAction } from "@/app/(app)/actions";
+import { updateStoreSettingsAction } from "@/app/(app)/actions/settings";
 
 type Props = {
   initialData: {
