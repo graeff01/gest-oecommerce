@@ -10,12 +10,13 @@ import {
 } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
+import { DashboardGreeting } from "@/components/dashboard-greeting";
 import { MetricCard } from "@/components/metric-card";
 import { SalesChart } from "@/components/sales-chart";
 import { getSession } from "@/lib/auth";
 import { ORDER_STATUS_LABELS } from "@/lib/constants";
 import { getDashboardData } from "@/lib/dashboard";
-import { firstName, greeting, money } from "@/lib/format";
+import { firstName, money } from "@/lib/format";
 
 export default async function DashboardPage() {
   await connection();
@@ -27,10 +28,7 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="eyebrow">Visão geral</p>
-          <h1 className="heading-display mt-2 text-[2.1rem] md:text-[2.5rem]">
-            {greeting()}{userName ? `, ${userName}` : ""}.{" "}
-            <span className="text-gradient">tudo sob controle</span>
-          </h1>
+          <DashboardGreeting name={userName} />
           <p className="mt-1.5 text-[0.92rem] font-normal text-muted">
             Vendas, caixa, margem e alertas principais — tudo em uma tela só.
           </p>
