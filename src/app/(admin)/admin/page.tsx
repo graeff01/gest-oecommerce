@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Info,
   Package,
-  RefreshCw,
   ShoppingBag,
   Users,
   WifiOff,
@@ -20,157 +19,107 @@ const ADMIN_COOKIE = "gestao_admin_session";
 
 function StatusDot({ online }: { online: boolean }) {
   return (
-    <span className={`inline-block h-2.5 w-2.5 rounded-full ${online ? "bg-success shadow-[0_0_6px_2px_rgba(34,197,94,0.4)]" : "bg-danger"}`} />
+    <span className="relative flex h-2.5 w-2.5 shrink-0">
+      {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />}
+      <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${online ? "bg-success" : "bg-danger"}`} />
+    </span>
   );
 }
 
-function AlertBadge({ alert }: { alert: Alert }) {
-  const styles = {
-    critical: "bg-danger-soft text-danger border-danger/20",
-    warning: "bg-warning-soft text-warning border-warning/20",
-    info: "bg-primary-soft text-primary border-primary/20",
-  };
-  const icons = {
-    critical: <XCircle size={13} className="shrink-0" />,
-    warning: <AlertTriangle size={13} className="shrink-0" />,
-    info: <Info size={13} className="shrink-0" />,
-  };
+function AlertRow({ alert }: { alert: Alert }) {
+  const cfg = {
+    critical: { cls: "text-danger", icon: <XCircle size={12} className="shrink-0" /> },
+    warning:  { cls: "text-warning", icon: <AlertTriangle size={12} className="shrink-0" /> },
+    info:     { cls: "text-primary", icon: <Info size={12} className="shrink-0" /> },
+  }[alert.level];
 
   return (
-    <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[0.78rem] font-medium ${styles[alert.level]}`}>
-      {icons[alert.level]}
+    <li className={`flex items-center gap-2 text-[0.78rem] font-medium ${cfg.cls}`}>
+      {cfg.icon}
       {alert.message}
+    </li>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[0.65rem] font-semibold uppercase tracking-widest text-subtle">{label}</span>
+      <strong className="font-display text-[1.05rem] font-semibold leading-none tracking-tight text-fg">{value}</strong>
+      {sub && <span className="text-[0.68rem] text-muted">{sub}</span>}
     </div>
   );
 }
 
 function ClientCard({ client }: { client: ClientSnapshot }) {
+  const criticalAlerts = client.alerts.filter((a) => a.level === "critical");
+  const hasCritical = criticalAlerts.length > 0;
+
   if (!client.online) {
     return (
-      <div className="surface-card grid gap-4 p-5 opacity-60">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <StatusDot online={false} />
+      <div className="flex items-start gap-4 rounded-2xl border border-border bg-surface-2/40 px-5 py-4 opacity-60">
+        <StatusDot online={false} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-lg font-semibold tracking-tight text-fg">{client.storeName}</h2>
-              <p className="text-[0.74rem] text-muted">{client.name}</p>
+              <p className="font-display text-[0.95rem] font-semibold text-fg">{client.storeName}</p>
+              <p className="text-[0.72rem] text-muted">{client.name}</p>
             </div>
+            <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-danger-soft px-2.5 py-1 text-[0.72rem] font-semibold text-danger">
+              <WifiOff size={11} /> Offline
+            </span>
           </div>
-          <span className="flex items-center gap-1.5 rounded-xl bg-danger-soft px-3 py-1.5 text-[0.76rem] font-semibold text-danger">
-            <WifiOff size={13} /> Offline
-          </span>
+          <p className="mt-2 text-[0.75rem] text-danger/80">{client.error}</p>
         </div>
-        <p className="rounded-xl bg-danger-soft/60 p-3 text-[0.78rem] text-danger">{client.error}</p>
       </div>
     );
   }
 
-  const criticalAlerts = client.alerts.filter((a) => a.level === "critical");
-  const warningAlerts = client.alerts.filter((a) => a.level === "warning");
-  const infoAlerts = client.alerts.filter((a) => a.level === "info");
   const allClear = client.alerts.length === 0;
 
   return (
-    <div className={`surface-card grid gap-5 p-5 ${criticalAlerts.length > 0 ? "ring-1 ring-danger/30" : ""}`}>
+    <div className={`rounded-2xl border bg-surface-2/40 px-5 py-4 transition ${hasCritical ? "border-danger/30 bg-danger-soft/5" : "border-border"}`}>
 
-      {/* cabeçalho */}
-      <div className="flex items-start justify-between gap-3">
+      {/* linha 1 — nome + badge */}
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <StatusDot online={true} />
           <div>
-            <h2 className="font-display text-lg font-semibold tracking-tight text-fg">{client.storeName}</h2>
-            <p className="text-[0.74rem] text-muted">{client.name}</p>
+            <p className="font-display text-[0.95rem] font-semibold leading-tight text-fg">{client.storeName}</p>
+            <p className="text-[0.7rem] text-muted">{client.name}</p>
           </div>
         </div>
+
         {allClear ? (
-          <span className="flex items-center gap-1.5 rounded-xl bg-success-soft px-3 py-1.5 text-[0.76rem] font-semibold text-success">
-            <CheckCircle2 size={13} /> Tudo ok
+          <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-success-soft px-2.5 py-1 text-[0.72rem] font-semibold text-success">
+            <CheckCircle2 size={11} /> Tudo ok
           </span>
         ) : (
-          <span className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[0.76rem] font-semibold ${criticalAlerts.length > 0 ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"}`}>
-            <AlertTriangle size={13} />
-            {client.alertCount} alerta{client.alertCount > 1 ? "s" : ""}
+          <span className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-[0.72rem] font-semibold ${hasCritical ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"}`}>
+            <AlertTriangle size={11} />
+            {client.alertCount} alerta{client.alertCount !== 1 ? "s" : ""}
           </span>
         )}
       </div>
 
-      {/* alertas */}
+      {/* linha 2 — alertas (compactos, sem caixas) */}
       {client.alerts.length > 0 && (
-        <div className="grid gap-2">
-          {criticalAlerts.map((a, i) => <AlertBadge key={i} alert={a} />)}
-          {warningAlerts.map((a, i) => <AlertBadge key={i} alert={a} />)}
-          {infoAlerts.map((a, i) => <AlertBadge key={i} alert={a} />)}
-        </div>
+        <ul className="mt-3 flex flex-col gap-1.5 border-t border-border/60 pt-3">
+          {client.alerts.map((a, i) => <AlertRow key={i} alert={a} />)}
+        </ul>
       )}
 
-      {/* métricas de engajamento */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary-soft text-primary">
-              <Activity size={15} strokeWidth={2.1} />
-            </span>
-            <p className="text-[0.68rem] font-medium uppercase tracking-wide text-subtle">Última venda</p>
-          </div>
-          <strong className="mt-3 block font-display text-base font-semibold tracking-tight text-fg">
-            {client.lastSaleAgo ?? "Nunca"}
-          </strong>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-success-soft text-success">
-              <ShoppingBag size={15} strokeWidth={2.1} />
-            </span>
-            <p className="text-[0.68rem] font-medium uppercase tracking-wide text-subtle">Vendas 7d</p>
-          </div>
-          <strong className="mt-3 block font-display text-base font-semibold tracking-tight text-fg">
-            {client.salesLast7}
-          </strong>
-          <p className="mt-0.5 text-[0.7rem] text-muted">{client.salesLast30} em 30 dias</p>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-warning-soft text-warning">
-              <Users size={15} strokeWidth={2.1} />
-            </span>
-            <p className="text-[0.68rem] font-medium uppercase tracking-wide text-subtle">Usuários</p>
-          </div>
-          <strong className="mt-3 block font-display text-base font-semibold tracking-tight text-fg">
-            {client.activeUsers}/{client.totalUsers}
-          </strong>
-          <p className="mt-0.5 text-[0.7rem] text-muted">ativos / total</p>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary-soft text-primary">
-              <Package size={15} strokeWidth={2.1} />
-            </span>
-            <p className="text-[0.68rem] font-medium uppercase tracking-wide text-subtle">Catálogo</p>
-          </div>
-          <strong className="mt-3 block font-display text-base font-semibold tracking-tight text-fg">
-            {client.totalProducts}
-          </strong>
-          <p className="mt-0.5 text-[0.7rem] text-muted">produtos</p>
-        </div>
-      </div>
-
-      {/* crescimento */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        <span className="text-[0.74rem] font-medium text-muted">Crescimento:</span>
-        <span className="chip">
-          +{client.newCustomersLast30} cliente{client.newCustomersLast30 !== 1 ? "s" : ""} em 30 dias
-        </span>
-        <span className="chip">
-          {client.totalCustomers} cliente{client.totalCustomers !== 1 ? "s" : ""} no total
-        </span>
-        {client.productsWithoutVariants > 0 && (
-          <span className="chip text-warning">
-            {client.productsWithoutVariants} produto{client.productsWithoutVariants > 1 ? "s" : ""} incompleto{client.productsWithoutVariants > 1 ? "s" : ""}
-          </span>
-        )}
+      {/* linha 3 — métricas em linha */}
+      <div className="mt-4 flex flex-wrap items-start gap-x-7 gap-y-3 border-t border-border/60 pt-4">
+        <Stat label="Última venda" value={client.lastSaleAgo ?? "Nunca"} />
+        <Stat label="Vendas 7d" value={client.salesLast7} sub={`${client.salesLast30} em 30 dias`} />
+        <Stat label="Usuários" value={`${client.activeUsers}/${client.totalUsers}`} sub="ativos / total" />
+        <Stat
+          label="Catálogo"
+          value={client.totalProducts}
+          sub={client.productsWithoutVariants > 0 ? `${client.productsWithoutVariants} incompleto${client.productsWithoutVariants > 1 ? "s" : ""}` : "produtos"}
+        />
+        <Stat label="Clientes" value={client.totalCustomers} sub={`+${client.newCustomersLast30} em 30 dias`} />
       </div>
     </div>
   );
@@ -194,26 +143,29 @@ export default async function AdminDashboard() {
   const onlineCount = clients.filter((c) => c.online).length;
   const totalSales7 = clients.reduce((s, c) => s + c.salesLast7, 0);
 
+  const sorted = [...clients].sort((a, b) => {
+    if (!a.online && b.online) return 1;
+    if (a.online && !b.online) return -1;
+    return b.alertCount - a.alertCount;
+  });
+
   return (
     <div className="min-h-dvh bg-surface p-4 md:p-8">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-3xl">
 
         {/* header */}
-        <header className="mb-8 flex items-center justify-between">
+        <header className="mb-7 flex items-start justify-between gap-4">
           <div>
-            <p className="eyebrow">Painel Master</p>
-            <h1 className="heading-display mt-1 text-2xl md:text-3xl">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-widest text-subtle">Painel Master</p>
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-fg md:text-3xl">
               Central de <span className="text-gradient">monitoramento</span>
             </h1>
-            <p className="mt-1 text-[0.85rem] text-muted">Saúde, engajamento e alertas de todos os clientes.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <form action="/api/admin/logout" method="POST">
-              <button type="submit" className="rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm text-muted transition hover:text-danger">
-                Sair
-              </button>
-            </form>
-          </div>
+          <form action="/api/admin/logout" method="POST">
+            <button type="submit" className="mt-1 rounded-xl border border-border bg-surface-2 px-4 py-2 text-[0.82rem] text-muted transition hover:text-danger">
+              Sair
+            </button>
+          </form>
         </header>
 
         {clients.length === 0 ? (
@@ -229,73 +181,37 @@ export default async function AdminDashboard() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-6">
+          <div className="grid gap-5">
 
-            {/* resumo geral */}
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="surface-card flex items-center gap-4 p-4">
-                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${onlineCount === clients.length ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}>
-                  <Activity size={18} strokeWidth={2.1} />
-                </span>
-                <div>
-                  <p className="text-[0.7rem] font-medium uppercase tracking-wide text-subtle">Clientes online</p>
-                  <strong className="mt-0.5 block font-display text-xl font-semibold tracking-tight text-fg">
-                    {onlineCount}/{clients.length}
-                  </strong>
-                </div>
+            {/* resumo — 4 pills compactos */}
+            <div className="flex flex-wrap gap-2">
+              <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-[0.78rem] font-semibold ${onlineCount === clients.length ? "border-success/20 bg-success-soft text-success" : "border-danger/20 bg-danger-soft text-danger"}`}>
+                <Activity size={13} />
+                {onlineCount}/{clients.length} online
               </div>
-
-              <div className="surface-card flex items-center gap-4 p-4">
-                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${criticalCount > 0 ? "bg-danger-soft text-danger" : totalAlerts > 0 ? "bg-warning-soft text-warning" : "bg-success-soft text-success"}`}>
-                  {criticalCount > 0 ? <XCircle size={18} /> : totalAlerts > 0 ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
-                </span>
-                <div>
-                  <p className="text-[0.7rem] font-medium uppercase tracking-wide text-subtle">Alertas ativos</p>
-                  <strong className="mt-0.5 block font-display text-xl font-semibold tracking-tight text-fg">
-                    {totalAlerts === 0 ? "Nenhum" : totalAlerts}
-                  </strong>
-                  {criticalCount > 0 && <p className="text-[0.7rem] text-danger">{criticalCount} crítico{criticalCount > 1 ? "s" : ""}</p>}
-                </div>
+              <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-[0.78rem] font-semibold ${criticalCount > 0 ? "border-danger/20 bg-danger-soft text-danger" : totalAlerts > 0 ? "border-warning/20 bg-warning-soft text-warning" : "border-success/20 bg-success-soft text-success"}`}>
+                {criticalCount > 0 ? <XCircle size={13} /> : totalAlerts > 0 ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
+                {totalAlerts === 0 ? "Sem alertas" : `${totalAlerts} alerta${totalAlerts !== 1 ? "s" : ""}`}
               </div>
-
-              <div className="surface-card flex items-center gap-4 p-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-                  <ShoppingBag size={18} strokeWidth={2.1} />
-                </span>
-                <div>
-                  <p className="text-[0.7rem] font-medium uppercase tracking-wide text-subtle">Vendas (7 dias)</p>
-                  <strong className="mt-0.5 block font-display text-xl font-semibold tracking-tight text-fg">
-                    {totalSales7}
-                  </strong>
-                  <p className="text-[0.7rem] text-muted">todos os clientes</p>
-                </div>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2/60 px-3.5 py-2 text-[0.78rem] font-semibold text-muted">
+                <ShoppingBag size={13} />
+                {totalSales7} venda{totalSales7 !== 1 ? "s" : ""} em 7 dias
               </div>
-
-              <div className="surface-card flex items-center gap-4 p-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-warning-soft text-warning">
-                  <RefreshCw size={18} strokeWidth={2.1} />
-                </span>
-                <div>
-                  <p className="text-[0.7rem] font-medium uppercase tracking-wide text-subtle">Atualizado</p>
-                  <strong className="mt-0.5 block font-display text-base font-semibold tracking-tight text-fg">
-                    agora
-                  </strong>
-                  <p className="text-[0.7rem] text-muted">dados em tempo real</p>
-                </div>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2/60 px-3.5 py-2 text-[0.78rem] font-semibold text-muted">
+                <Users size={13} />
+                {clients.reduce((s, c) => s + c.totalCustomers, 0)} clientes
               </div>
-            </section>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2/60 px-3.5 py-2 text-[0.78rem] font-semibold text-muted">
+                <Package size={13} />
+                {clients.reduce((s, c) => s + c.totalProducts, 0)} produtos
+              </div>
+            </div>
 
-            {/* cards dos clientes — críticos primeiro */}
-            <div className="grid gap-4">
-              {[...clients]
-                .sort((a, b) => {
-                  if (!a.online) return 1;
-                  if (!b.online) return -1;
-                  return b.alertCount - a.alertCount;
-                })
-                .map((client) => (
-                  <ClientCard key={client.key} client={client} />
-                ))}
+            {/* cards dos clientes */}
+            <div className="grid gap-3">
+              {sorted.map((client) => (
+                <ClientCard key={client.key} client={client} />
+              ))}
             </div>
 
           </div>
