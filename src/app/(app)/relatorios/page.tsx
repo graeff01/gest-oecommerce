@@ -17,8 +17,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     }
   } : {};
 
+  // Exclui pedidos cancelados do faturamento e ranking
+  const orderFilter = {
+    ...dateFilter,
+    status: { not: "CANCELED" as const }
+  };
+
   const [orders, variants, transactions] = await Promise.all([
-    prisma.order.findMany({ where: dateFilter, include: { items: { include: { variant: { include: { product: true } } } } } }),
+    prisma.order.findMany({ where: orderFilter, include: { items: { include: { variant: { include: { product: true } } } } } }),
     prisma.productVariant.findMany({ include: { product: true }, orderBy: { stockQuantity: "asc" } }),
     prisma.financialTransaction.findMany({ where: dateFilter })
   ]);

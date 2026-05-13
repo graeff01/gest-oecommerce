@@ -1,4 +1,4 @@
-import { ArrowDownToLine, PackagePlus, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, PackagePlus, Sparkles } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -47,13 +47,20 @@ export default async function PurchasesPage() {
           </label>
           <label className="label">
             Produto
-            <select className="field" name="variantId" required>
-              {variants.map((variant) => (
-                <option key={variant.id} value={variant.id}>
-                  {variant.product.name} · {variant.color}/{variant.size} · {variant.sku}
-                </option>
-              ))}
-            </select>
+            {variants.length === 0 ? (
+              <div className="field flex items-center gap-2 text-muted">
+                <AlertTriangle size={14} className="text-warning shrink-0" />
+                Cadastre produtos primeiro em &ldquo;Produtos&rdquo;
+              </div>
+            ) : (
+              <select className="field" name="variantId" required>
+                {variants.map((variant) => (
+                  <option key={variant.id} value={variant.id}>
+                    {variant.product.name} · {variant.color}/{variant.size} · {variant.sku} · {variant.stockQuantity} un.
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
           <div className="grid gap-3 md:grid-cols-3">
             <label className="label">

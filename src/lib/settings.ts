@@ -10,7 +10,7 @@ export type StoreSettingsData = {
 };
 
 const FALLBACK: StoreSettingsData = {
-  storeName: "LA WEAR",
+  storeName: "Minha Loja",
   storeTagline: null,
   loginImageUrl: null,
   cashBalance: 0
@@ -21,7 +21,7 @@ export async function getStoreSettings(): Promise<StoreSettingsData> {
     const settings = await prisma.storeSettings.upsert({
       where: { id: 1 },
       update: {},
-      create: { id: 1, storeName: FALLBACK.storeName }
+      create: { id: 1, storeName: FALLBACK.storeName, cashBalance: 0 }
     });
 
     return {

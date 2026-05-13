@@ -104,5 +104,8 @@ export async function createPurchaseAction(formData: FormData) {
 
   revalidatePath("/compras");
   revalidatePath("/financeiro");
+  revalidatePath("/produtos");
+  revalidatePath("/vendas");
+  revalidatePath("/movimentacoes");
   revalidatePath("/");
 }

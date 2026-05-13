@@ -40,6 +40,8 @@ export async function createProductAction(formData: FormData) {
   });
 
   revalidatePath("/produtos");
+  revalidatePath("/vendas");
+  revalidatePath("/compras");
 }
 
 export async function updateProductAction(formData: FormData) {
@@ -72,11 +74,21 @@ export async function updateProductAction(formData: FormData) {
   });
 
   revalidatePath("/produtos");
+  revalidatePath("/vendas");
+  revalidatePath("/compras");
 }
 
 export async function deleteProductAction(formData: FormData) {
   const user = await requireRole(["ADMIN"]);
   const { id } = z.object({ id: z.string().min(1) }).parse(Object.fromEntries(formData));
+
+  // Bloqueia exclusão se há itens de pedido vinculados (onDelete: Restrict no OrderItem)
+  const hasOrders = await prisma.orderItem.count({
+    where: { variant: { productId: id } }
+  });
+  if (hasOrders > 0) {
+    throw new Error("Não é possível excluir um produto que já teve pedidos. Inative-o em vez de excluir.");
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.product.delete({ where: { id } });
@@ -86,14 +98,16 @@ export async function deleteProductAction(formData: FormData) {
   });
 
   revalidatePath("/produtos");
+  revalidatePath("/vendas");
+  revalidatePath("/compras");
 }
 
 export async function createVariantAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "STOCK"]);
   const parsed = z.object({
     productId: z.string().min(1),
-    sku: z.string().min(3),
-    color: z.string().min(2),
+    sku: z.string().min(1),
+    color: z.string().min(1),
     size: z.string().min(1),
     costPrice: decimal,
     salePrice: decimal,
@@ -102,19 +116,24 @@ export async function createVariantAction(formData: FormData) {
   }).parse(Object.fromEntries(formData));
 
   const variant = await prisma.productVariant.create({ data: parsed });
-  await prisma.stockMovement.create({
-    data: { variantId: variant.id, userId: user.id, type: "IN", quantity: parsed.stockQuantity, reason: "Nova variação" }
-  });
+
+  if (parsed.stockQuantity > 0) {
+    await prisma.stockMovement.create({
+      data: { variantId: variant.id, userId: user.id, type: "IN", quantity: parsed.stockQuantity, reason: "Estoque inicial" }
+    });
+  }
 
   revalidatePath("/produtos");
+  revalidatePath("/vendas");
+  revalidatePath("/compras");
 }
 
 export async function updateVariantAction(formData: FormData) {
   await requireRole(["ADMIN", "STOCK"]);
   const parsed = z.object({
     id: z.string().min(1),
-    sku: z.string().min(3),
-    color: z.string().min(2),
+    sku: z.string().min(1),
+    color: z.string().min(1),
     size: z.string().min(1),
     costPrice: decimal,
     salePrice: decimal,
@@ -134,11 +153,18 @@ export async function updateVariantAction(formData: FormData) {
   });
 
   revalidatePath("/produtos");
+  revalidatePath("/vendas");
 }
 
 export async function deleteVariantAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "STOCK"]);
   const { id } = z.object({ id: z.string().min(1) }).parse(Object.fromEntries(formData));
+
+  // Bloqueia se há itens de pedido (onDelete: Restrict)
+  const hasOrders = await prisma.orderItem.count({ where: { variantId: id } });
+  if (hasOrders > 0) {
+    throw new Error("Não é possível excluir uma variação que já teve pedidos registrados.");
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.productVariant.delete({ where: { id } });
@@ -148,6 +174,8 @@ export async function deleteVariantAction(formData: FormData) {
   });
 
   revalidatePath("/produtos");
+  revalidatePath("/vendas");
+  revalidatePath("/compras");
 }
 
 export async function adjustStockAction(formData: FormData) {
@@ -160,24 +188,44 @@ export async function adjustStockAction(formData: FormData) {
   }).parse(Object.fromEntries(formData));
 
   await prisma.$transaction(async (tx) => {
-    const delta = parsed.type === "OUT" ? -parsed.quantity : parsed.quantity;
     const variant = await tx.productVariant.findUniqueOrThrow({
       where: { id: parsed.variantId },
       select: { stockQuantity: true }
     });
 
-    if (delta < 0 && variant.stockQuantity < parsed.quantity) {
-      throw new Error("Estoque insuficiente para esta movimentação.");
+    let newQuantity: number;
+
+    if (parsed.type === "ADJUSTMENT") {
+      // ADJUSTMENT define o estoque para o valor exato informado
+      newQuantity = parsed.quantity;
+    } else if (parsed.type === "OUT") {
+      if (variant.stockQuantity < parsed.quantity) {
+        throw new Error("Estoque insuficiente para esta movimentação.");
+      }
+      newQuantity = variant.stockQuantity - parsed.quantity;
+    } else {
+      // IN ou RETURN: soma
+      newQuantity = variant.stockQuantity + parsed.quantity;
     }
 
     await tx.productVariant.update({
       where: { id: parsed.variantId },
-      data: { stockQuantity: { increment: delta } }
+      data: { stockQuantity: newQuantity }
     });
+
     await tx.stockMovement.create({
-      data: { ...parsed, userId: user.id }
+      data: {
+        variantId: parsed.variantId,
+        userId: user.id,
+        type: parsed.type,
+        quantity: parsed.quantity,
+        reason: parsed.reason
+      }
     });
   });
 
   revalidatePath("/produtos");
+  revalidatePath("/movimentacoes");
+  revalidatePath("/vendas");
+  revalidatePath("/");
 }

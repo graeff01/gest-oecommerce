@@ -45,6 +45,7 @@ export async function createOrderAction(formData: FormData) {
 
     const code = `PED-${randomUUID().slice(0, 8).toUpperCase()}`;
 
+    // Baixa atômica: só executa se o estoque ainda for suficiente
     const stockUpdate = await tx.productVariant.updateMany({
       where: { id: variant.id, stockQuantity: { gte: parsed.quantity } },
       data: { stockQuantity: { decrement: parsed.quantity } }
@@ -119,6 +120,7 @@ export async function createOrderAction(formData: FormData) {
 
   revalidatePath("/vendas");
   revalidatePath("/financeiro");
+  revalidatePath("/produtos");
   revalidatePath("/clientes");
   revalidatePath("/");
 }
@@ -141,6 +143,7 @@ export async function cancelOrderAction(formData: FormData) {
 
     await tx.order.update({ where: { id }, data: { status: "CANCELED" } });
 
+    // Devolve estoque de cada item
     for (const item of order.items) {
       await tx.productVariant.update({
         where: { id: item.variantId },
@@ -157,6 +160,13 @@ export async function cancelOrderAction(formData: FormData) {
       });
     }
 
+    // Estorna o lançamento financeiro da venda (pagamentos à vista)
+    if (order.paymentMethod !== "CREDIARIO") {
+      await tx.financialTransaction.deleteMany({
+        where: { title: `Venda ${order.code}`, type: "REVENUE" }
+      });
+    }
+
     await tx.auditLog.create({
       data: { userId: user.id, action: "CANCEL_ORDER", entity: "Order", entityId: id }
     });
@@ -164,6 +174,8 @@ export async function cancelOrderAction(formData: FormData) {
 
   revalidatePath("/vendas");
   revalidatePath("/clientes");
+  revalidatePath("/financeiro");
+  revalidatePath("/produtos");
   revalidatePath("/");
 }
 
@@ -213,6 +225,7 @@ export async function payInstallmentAction(formData: FormData) {
       }
     });
 
+    // Quando todas parcelas pagas, marca pedido como PAID
     const remaining = installment.order.installments.filter((i) => i.id !== installment.id && !i.paidAt).length;
     if (remaining === 0) {
       await tx.order.update({ where: { id: installment.orderId }, data: { status: "PAID" } });
