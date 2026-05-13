@@ -82,7 +82,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                       <td className="text-muted">{date(order.createdAt)}</td>
                       <td>
                         {order.status !== "CANCELED" && order.status !== "DELIVERED" && (
-                          <form action={cancelOrderAction} onSubmit={(e) => { if (!confirm("Cancelar este pedido? O estoque será restaurado.")) e.preventDefault(); }}>
+                          <form action={cancelOrderAction}>
                             <input type="hidden" name="id" value={order.id} />
                             <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">Cancelar</button>
                           </form>

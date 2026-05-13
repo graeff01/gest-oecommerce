@@ -132,7 +132,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                       <td className="text-muted">{date(item.paidAt)}</td>
                       <td className="text-muted">{date(item.dueDate)}</td>
                       <td>
-                        <form action={deleteFinancialTransactionAction} onSubmit={(e) => { if (!confirm("Excluir este lançamento?")) e.preventDefault(); }}>
+                        <form action={deleteFinancialTransactionAction}>
                           <input type="hidden" name="id" value={item.id} />
                           <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">Excluir</button>
                         </form>
