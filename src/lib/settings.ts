@@ -6,12 +6,14 @@ export type StoreSettingsData = {
   storeName: string;
   storeTagline: string | null;
   loginImageUrl: string | null;
+  cashBalance: number;
 };
 
 const FALLBACK: StoreSettingsData = {
   storeName: "LA WEAR",
   storeTagline: null,
-  loginImageUrl: null
+  loginImageUrl: null,
+  cashBalance: 0
 };
 
 export async function getStoreSettings(): Promise<StoreSettingsData> {
@@ -25,14 +27,15 @@ export async function getStoreSettings(): Promise<StoreSettingsData> {
     return {
       storeName: settings.storeName,
       storeTagline: settings.storeTagline,
-      loginImageUrl: settings.loginImageUrl
+      loginImageUrl: settings.loginImageUrl,
+      cashBalance: Number(settings.cashBalance)
     };
   } catch {
     return FALLBACK;
   }
 }
 
-export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
+export async function updateStoreSettings(data: Partial<Omit<StoreSettingsData, "cashBalance">> & { cashBalance?: number }) {
   await prisma.storeSettings.upsert({
     where: { id: 1 },
     update: data,

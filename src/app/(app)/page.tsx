@@ -5,7 +5,8 @@ import {
   CircleDollarSign,
   ReceiptText,
   TrendingUp,
-  UsersRound
+  UsersRound,
+  Wallet
 } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
@@ -38,6 +39,13 @@ export default async function DashboardPage() {
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
+          label="Saldo em caixa"
+          value={money(data.metrics.currentBalance)}
+          detail={data.metrics.currentBalance >= 0 ? "Caixa positivo" : "Caixa negativo"}
+          icon={Wallet}
+          tone={data.metrics.currentBalance >= 0 ? "success" : "danger"}
+        />
+        <MetricCard
           label="Vendas do mês"
           value={money(data.metrics.salesTotal)}
           detail="Pedidos pagos e ativos"
@@ -45,7 +53,7 @@ export default async function DashboardPage() {
           tone="primary"
         />
         <MetricCard
-          label="Receitas"
+          label="Receitas do mês"
           value={money(data.metrics.revenue)}
           detail="Entradas financeiras"
           icon={CircleDollarSign}
@@ -57,13 +65,6 @@ export default async function DashboardPage() {
           detail="Venda menos custo e despesas"
           icon={TrendingUp}
           tone="warning"
-        />
-        <MetricCard
-          label="Estoque baixo"
-          value={String(data.metrics.lowStock)}
-          detail="Variações pedem reposição"
-          icon={AlertTriangle}
-          tone="danger"
         />
       </section>
 

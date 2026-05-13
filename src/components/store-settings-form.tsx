@@ -9,6 +9,7 @@ type Props = {
     storeName: string;
     storeTagline: string | null;
     loginImageUrl: string | null;
+    cashBalance: number;
   };
 };
 
@@ -16,6 +17,7 @@ export function StoreSettingsForm({ initialData }: Props) {
   const [storeName, setStoreName] = useState(initialData.storeName);
   const [storeTagline, setStoreTagline] = useState(initialData.storeTagline ?? "");
   const [loginImageUrl, setLoginImageUrl] = useState(initialData.loginImageUrl ?? "");
+  const [cashBalance, setCashBalance] = useState(String(initialData.cashBalance ?? 0));
 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -23,6 +25,15 @@ export function StoreSettingsForm({ initialData }: Props) {
   const [pending, startTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function buildFormData(overrides: Partial<Record<string, string>> = {}) {
+    const data = new FormData();
+    data.append("storeName", overrides.storeName ?? storeName);
+    data.append("storeTagline", overrides.storeTagline ?? storeTagline);
+    data.append("loginImageUrl", overrides.loginImageUrl ?? loginImageUrl);
+    data.append("cashBalance", overrides.cashBalance ?? cashBalance);
+    return data;
+  }
 
   async function handleFile(file: File) {
     setUploadError(null);
@@ -34,12 +45,7 @@ export function StoreSettingsForm({ initialData }: Props) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Falha ao enviar imagem.");
       setLoginImageUrl(data.url);
-
-      const persistData = new FormData();
-      persistData.append("storeName", storeName);
-      persistData.append("storeTagline", storeTagline);
-      persistData.append("loginImageUrl", data.url);
-      await updateStoreSettingsAction(persistData);
+      await updateStoreSettingsAction(buildFormData({ loginImageUrl: data.url }));
       setSavedAt(Date.now());
       window.setTimeout(() => setSavedAt(null), 2400);
     } catch (error) {
@@ -51,22 +57,14 @@ export function StoreSettingsForm({ initialData }: Props) {
 
   async function handleRemoveImage() {
     setLoginImageUrl("");
-    const persistData = new FormData();
-    persistData.append("storeName", storeName);
-    persistData.append("storeTagline", storeTagline);
-    persistData.append("loginImageUrl", "");
-    await updateStoreSettingsAction(persistData);
+    await updateStoreSettingsAction(buildFormData({ loginImageUrl: "" }));
     setSavedAt(Date.now());
     window.setTimeout(() => setSavedAt(null), 2400);
   }
 
   function submit() {
     startTransition(async () => {
-      const data = new FormData();
-      data.append("storeName", storeName);
-      data.append("storeTagline", storeTagline);
-      data.append("loginImageUrl", loginImageUrl);
-      await updateStoreSettingsAction(data);
+      await updateStoreSettingsAction(buildFormData());
       setSavedAt(Date.now());
       window.setTimeout(() => setSavedAt(null), 2400);
     });
@@ -108,6 +106,22 @@ export function StoreSettingsForm({ initialData }: Props) {
             maxLength={120}
           />
           <span className="text-[0.7rem] font-normal text-subtle">{storeTagline.length}/120</span>
+        </label>
+
+        <label className="label">
+          Saldo inicial em caixa (R$)
+          <input
+            className="field"
+            type="number"
+            min="0"
+            step="0.01"
+            value={cashBalance}
+            onChange={(event) => setCashBalance(event.target.value)}
+            placeholder="0,00"
+          />
+          <span className="text-[0.7rem] font-normal text-subtle">
+            Valor que já estava no caixa antes de começar a usar o sistema. O saldo exibido no dashboard é este valor mais as entradas menos as saídas registradas.
+          </span>
         </label>
 
         <div className="flex items-center justify-between border-t border-border pt-4">

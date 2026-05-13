@@ -238,5 +238,6 @@ model StoreSettings {
   storeTagline   String?
   loginImageUrl  String?
   primaryColor   String?
+  cashBalance    Decimal  @default(0) @db.Decimal(12, 2)
   updatedAt      DateTime @updatedAt
 }

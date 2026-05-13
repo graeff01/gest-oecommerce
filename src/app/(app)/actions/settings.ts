@@ -12,13 +12,15 @@ export async function updateStoreSettingsAction(formData: FormData) {
   const parsed = z.object({
     storeName: z.string().min(2).max(60),
     storeTagline: z.string().max(120).optional().or(z.literal("")),
-    loginImageUrl: z.string().optional().or(z.literal(""))
+    loginImageUrl: z.string().optional().or(z.literal("")),
+    cashBalance: z.coerce.number().min(0).default(0)
   }).parse(Object.fromEntries(formData));
 
   await updateStoreSettings({
     storeName: parsed.storeName.trim(),
     storeTagline: parsed.storeTagline?.trim() || null,
-    loginImageUrl: parsed.loginImageUrl?.trim() || null
+    loginImageUrl: parsed.loginImageUrl?.trim() || null,
+    cashBalance: parsed.cashBalance
   });
 
   revalidatePath("/", "layout");
