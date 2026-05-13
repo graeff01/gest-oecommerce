@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "prisma db push --accept-data-loss && tsx prisma/seed.ts; npm start",
+    "startCommand": "tsx prisma/mark-baseline.ts && prisma migrate deploy && tsx prisma/seed.ts; npm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }

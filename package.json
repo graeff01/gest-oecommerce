@@ -15,7 +15,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
-    "deploy:release": "prisma db push --accept-data-loss && tsx prisma/seed.ts",
+    "db:baseline": "tsx prisma/mark-baseline.ts",
+    "deploy:release": "tsx prisma/mark-baseline.ts && prisma migrate deploy && tsx prisma/seed.ts",
     "verify:backend": "tsx scripts/verify-backend.ts"
   },
   "dependencies": {
