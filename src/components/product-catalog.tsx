@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
+  ArrowDownUp,
   Boxes,
   CircleDollarSign,
   Filter,
@@ -20,7 +21,7 @@ import {
   X
 } from "lucide-react";
 import { money } from "@/lib/format";
-import { createVariantAction, updateVariantAction, deleteVariantAction, deleteProductAction } from "@/app/(app)/actions/products";
+import { createVariantAction, updateVariantAction, deleteVariantAction, deleteProductAction, adjustStockAction } from "@/app/(app)/actions/products";
 
 type StockFilter = "all" | "low" | "out";
 
@@ -104,6 +105,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [adjustingVariantId, setAdjustingVariantId] = useState<string | null>(null);
 
   const rows = useMemo(() => buildRows(products), [products]);
 
@@ -467,7 +469,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                   </form>
                   <button
                     className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-muted transition hover:bg-danger-soft hover:text-danger"
-                    onClick={() => { setSelectedProductId(null); setEditingVariantId(null); }}
+                    onClick={() => { setSelectedProductId(null); setEditingVariantId(null); setAdjustingVariantId(null); }}
                     title="Fechar"
                   >
                     <X size={17} />
@@ -531,6 +533,29 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                                   <button type="button" onClick={() => setEditingVariantId(null)} className="h-7 flex-1 rounded-lg border border-border bg-surface-2 px-2 text-xs text-muted transition hover:text-fg">Cancelar</button>
                                 </div>
                               </form>
+                            ) : adjustingVariantId === variant.id ? (
+                              <form action={adjustStockAction} onSubmit={() => setAdjustingVariantId(null)} className="grid gap-2">
+                                <input type="hidden" name="variantId" value={variant.id} />
+                                <p className="text-[0.76rem] font-semibold text-fg">Ajustar estoque</p>
+                                <label className="label text-[0.72rem]">
+                                  Tipo
+                                  <select className="field h-7 py-0 text-xs" name="type">
+                                    <option value="IN">Entrada</option>
+                                    <option value="OUT">Saída</option>
+                                    <option value="ADJUSTMENT">Ajuste</option>
+                                  </select>
+                                </label>
+                                <label className="label text-[0.72rem]">
+                                  Qtd.<input className="field h-7 py-1 text-xs" name="quantity" type="number" min="1" defaultValue="1" required />
+                                </label>
+                                <label className="label text-[0.72rem]">
+                                  Motivo<input className="field h-7 py-1 text-xs" name="reason" placeholder="Ex: Recontagem, devolução" required />
+                                </label>
+                                <div className="flex gap-2">
+                                  <button type="submit" className="button-primary h-7 flex-1 px-2 py-0 text-xs">Salvar</button>
+                                  <button type="button" onClick={() => setAdjustingVariantId(null)} className="h-7 flex-1 rounded-lg border border-border bg-surface-2 px-2 text-xs text-muted transition hover:text-fg">Cancelar</button>
+                                </div>
+                              </form>
                             ) : (
                               <>
                                 <div className="flex items-center justify-between gap-2">
@@ -541,7 +566,10 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                                     <span className={variant.stockQuantity <= variant.minStock ? "status-pill pill-danger" : "status-pill"}>
                                       {variant.stockQuantity} un.
                                     </span>
-                                    <button type="button" onClick={() => setEditingVariantId(variant.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-primary-soft hover:text-primary" title="Editar variação">
+                                    <button type="button" onClick={() => { setAdjustingVariantId(variant.id); setEditingVariantId(null); }} className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-warning-soft hover:text-warning" title="Ajustar estoque">
+                                      <ArrowDownUp size={13} />
+                                    </button>
+                                    <button type="button" onClick={() => { setEditingVariantId(variant.id); setAdjustingVariantId(null); }} className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-primary-soft hover:text-primary" title="Editar variação">
                                       <Pencil size={13} />
                                     </button>
                                     <form action={deleteVariantAction} onSubmit={(e) => { if (!confirm("Excluir esta variação?")) e.preventDefault(); }}>

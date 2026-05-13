@@ -14,6 +14,7 @@ import {
   Settings,
   ShoppingBag,
   Sparkles,
+  TrendingUp,
   UsersRound
 } from "lucide-react";
 import { SidebarTips } from "@/components/sidebar-tips";
@@ -26,6 +27,7 @@ const nav = [
   { href: "/clientes", label: "Clientes", icon: UsersRound },
   { href: "/fornecedores", label: "Fornecedores", icon: Building2 },
   { href: "/compras", label: "Compras", icon: PackagePlus },
+  { href: "/movimentacoes", label: "Movimentações", icon: TrendingUp },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/configuracoes", label: "Configurações", icon: Settings }
 ];

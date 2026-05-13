@@ -167,6 +167,18 @@ export async function cancelOrderAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateOrderStatusAction(formData: FormData) {
+  await requireRole(["ADMIN", "SALES"]);
+  const { id, status } = z.object({
+    id: z.string().min(1),
+    status: z.enum(["NEW", "PAID", "PICKING", "SHIPPED", "DELIVERED", "CANCELED"])
+  }).parse(Object.fromEntries(formData));
+
+  await prisma.order.update({ where: { id }, data: { status } });
+  revalidatePath("/vendas");
+  revalidatePath("/");
+}
+
 export async function payInstallmentAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "SALES", "FINANCE"]);
   const parsed = z.object({

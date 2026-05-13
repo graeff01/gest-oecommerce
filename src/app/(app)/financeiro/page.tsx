@@ -1,4 +1,4 @@
-import { CircleDollarSign, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { CircleDollarSign, Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { MetricCard } from "@/components/metric-card";
@@ -11,22 +11,31 @@ import { createFinancialTransactionAction, deleteFinancialTransactionAction } fr
 
 const PAGE_SIZE = 30;
 
-export default async function FinancePage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ page?: string; from?: string; to?: string }> }) {
   await connection();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, from, to } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+
+  const dateFilter = from || to ? {
+    createdAt: {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to ? { lte: new Date(to + "T23:59:59.999Z") } : {})
+    }
+  } : {};
 
   const [totals, transactions, total] = await Promise.all([
     prisma.financialTransaction.groupBy({
       by: ["type"],
+      where: dateFilter,
       _sum: { amount: true }
     }),
     prisma.financialTransaction.findMany({
+      where: dateFilter,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE
     }),
-    prisma.financialTransaction.count()
+    prisma.financialTransaction.count({ where: dateFilter })
   ]);
 
   const revenue = Number(totals.find((t) => t.type === "REVENUE")?._sum.amount ?? 0);
@@ -38,6 +47,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       <PageHeader
         title="Financeiro"
         description="Controle receitas, gastos, contas pagas, contas abertas e categorias do caixa."
+        action={<a href={`/api/export/finance${from || to ? `?${from ? `from=${from}` : ""}${from && to ? "&" : ""}${to ? `to=${to}` : ""}` : ""}`} className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>}
       />
       <section className="grid gap-3 md:grid-cols-3">
         <MetricCard label="Receitas" value={money(revenue)} detail="Entradas registradas" icon={TrendingUp} tone="success" />
@@ -50,6 +60,21 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           tone="primary"
         />
       </section>
+
+      <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
+        <label className="label flex-1 min-w-[140px]">
+          De<input className="field" name="from" type="date" defaultValue={from ?? ""} />
+        </label>
+        <label className="label flex-1 min-w-[140px]">
+          Até<input className="field" name="to" type="date" defaultValue={to ?? ""} />
+        </label>
+        <div className="flex gap-2 self-end">
+          <button type="submit" className="button-primary h-10 px-4">Filtrar</button>
+          {(from || to) && (
+            <a href="/financeiro" className="flex h-10 items-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg">Limpar</a>
+          )}
+        </div>
+      </form>
 
       <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
         <form action={createFinancialTransactionAction} className="surface-card grid gap-4 p-5">

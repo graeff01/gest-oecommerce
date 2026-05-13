@@ -6,12 +6,21 @@ import { PageHeader } from "@/components/page-header";
 import { money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
-export default async function ReportsPage() {
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
   await connection();
+  const { from, to } = await searchParams;
+
+  const dateFilter = from || to ? {
+    createdAt: {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to ? { lte: new Date(to + "T23:59:59.999Z") } : {})
+    }
+  } : {};
+
   const [orders, variants, transactions] = await Promise.all([
-    prisma.order.findMany({ include: { items: { include: { variant: { include: { product: true } } } } } }),
+    prisma.order.findMany({ where: dateFilter, include: { items: { include: { variant: { include: { product: true } } } } } }),
     prisma.productVariant.findMany({ include: { product: true }, orderBy: { stockQuantity: "asc" } }),
-    prisma.financialTransaction.findMany()
+    prisma.financialTransaction.findMany({ where: dateFilter })
   ]);
 
   const salesTotal = orders.reduce((sum, order) => sum + Number(order.total), 0);
@@ -41,6 +50,21 @@ export default async function ReportsPage() {
         title="Relatórios"
         description="Resumo gerencial de vendas, margem, estoque parado e performance por produto."
       />
+      <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
+        <label className="label flex-1 min-w-[140px]">
+          De<input className="field" name="from" type="date" defaultValue={from ?? ""} />
+        </label>
+        <label className="label flex-1 min-w-[140px]">
+          Até<input className="field" name="to" type="date" defaultValue={to ?? ""} />
+        </label>
+        <div className="flex gap-2 self-end">
+          <button type="submit" className="button-primary h-10 px-4">Filtrar</button>
+          {(from || to) && (
+            <a href="/relatorios" className="flex h-10 items-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg">Limpar</a>
+          )}
+        </div>
+      </form>
+
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Faturamento" value={money(salesTotal)} detail="Total vendido" icon={BarChart3} tone="primary" />
         <MetricCard

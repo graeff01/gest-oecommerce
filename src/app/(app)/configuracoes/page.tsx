@@ -87,9 +87,12 @@ export default async function SettingsPage() {
                               <span className="status-pill pill-primary">{user.role}</span>
                             </td>
                             <td>
-                              <span className={user.active ? "status-pill" : "status-pill pill-neutral"}>
-                                {user.active ? "Ativo" : "Inativo"}
-                              </span>
+                              <form action={toggleUserActiveAction} className="flex items-center gap-2">
+                                <input type="hidden" name="id" value={user.id} />
+                                <button type="submit" className={`status-pill transition hover:opacity-70 ${user.active ? "" : "pill-neutral"}`}>
+                                  {user.active ? "Ativo — clique para desativar" : "Inativo — clique para ativar"}
+                                </button>
+                              </form>
                             </td>
                           </tr>
                         ))

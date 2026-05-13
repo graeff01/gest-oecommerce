@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { OrderForm } from "@/components/order-form";
@@ -6,7 +7,7 @@ import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { cancelOrderAction } from "../actions/orders";
+import { cancelOrderAction, updateOrderStatusAction } from "../actions/orders";
 
 const PAGE_SIZE = 20;
 
@@ -36,6 +37,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
       <PageHeader
         title="Vendas"
         description="Registre a venda uma vez: o sistema baixa o estoque automaticamente e cria a receita no financeiro."
+        action={<a href="/api/export/orders" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>}
       />
       <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
         <OrderForm
@@ -81,12 +83,25 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                       <td className="text-right font-semibold text-fg">{money(order.total)}</td>
                       <td className="text-muted">{date(order.createdAt)}</td>
                       <td>
-                        {order.status !== "CANCELED" && order.status !== "DELIVERED" && (
-                          <form action={cancelOrderAction}>
-                            <input type="hidden" name="id" value={order.id} />
-                            <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">Cancelar</button>
-                          </form>
-                        )}
+                        {order.status !== "CANCELED" && order.status !== "DELIVERED" ? (
+                          <div className="flex items-center gap-1.5">
+                            <form action={updateOrderStatusAction} className="flex items-center gap-1">
+                              <input type="hidden" name="id" value={order.id} />
+                              <select name="status" defaultValue={order.status} className="field h-7 py-0 text-xs">
+                                <option value="NEW">Novo</option>
+                                <option value="PAID">Pago</option>
+                                <option value="PICKING">Separando</option>
+                                <option value="SHIPPED">Enviado</option>
+                                <option value="DELIVERED">Entregue</option>
+                              </select>
+                              <button type="submit" className="h-7 rounded-lg bg-primary-soft px-2 text-xs font-semibold text-primary hover:bg-primary/20">OK</button>
+                            </form>
+                            <form action={cancelOrderAction}>
+                              <input type="hidden" name="id" value={order.id} />
+                              <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">✕</button>
+                            </form>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))

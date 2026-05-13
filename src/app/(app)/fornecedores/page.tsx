@@ -1,4 +1,4 @@
-import { Building2 } from "lucide-react";
+import { Building2, Pencil, X } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -7,7 +7,10 @@ import { createSupplierAction, updateSupplierAction, deleteSupplierAction } from
 
 export default async function SuppliersPage() {
   await connection();
-  const suppliers = await prisma.supplier.findMany({ include: { purchases: true }, orderBy: { createdAt: "desc" } });
+  const suppliers = await prisma.supplier.findMany({
+    include: { purchases: true },
+    orderBy: { createdAt: "desc" }
+  });
 
   return (
     <AnimatedShell className="grid gap-6">
@@ -26,28 +29,17 @@ export default async function SuppliersPage() {
               <p className="text-[0.76rem] font-normal text-muted">Cadastro com contato e dados fiscais.</p>
             </div>
           </div>
-          <label className="label">
-            Nome<input className="field" name="name" required />
-          </label>
+          <label className="label">Nome<input className="field" name="name" required /></label>
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="label">
-              CNPJ/CPF<input className="field" name="document" />
-            </label>
-            <label className="label">
-              Contato<input className="field" name="contact" />
-            </label>
-            <label className="label">
-              Telefone<input className="field" name="phone" />
-            </label>
-            <label className="label">
-              E-mail<input className="field" name="email" type="email" />
-            </label>
+            <label className="label">CNPJ/CPF<input className="field" name="document" /></label>
+            <label className="label">Contato<input className="field" name="contact" /></label>
+            <label className="label">Telefone<input className="field" name="phone" /></label>
+            <label className="label">E-mail<input className="field" name="email" type="email" /></label>
           </div>
-          <label className="label">
-            Observações<textarea className="field min-h-20" name="notes" />
-          </label>
+          <label className="label">Observações<textarea className="field min-h-16" name="notes" /></label>
           <button className="button-primary">Cadastrar fornecedor</button>
         </form>
+
         <div className="table-shell overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -56,28 +48,59 @@ export default async function SuppliersPage() {
                 <th>Contato</th>
                 <th>Telefone</th>
                 <th>Compras</th>
-                <th>Notas</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {suppliers.length ? (
-                suppliers.map((supplier) => (
-                  <tr key={supplier.id}>
-                    <td className="font-semibold text-fg">{supplier.name}</td>
-                    <td>{supplier.contact || supplier.email || "-"}</td>
-                    <td>{supplier.phone || "-"}</td>
-                    <td>
-                      <span className="chip">{supplier.purchases.length}</span>
-                    </td>
-                    <td className="text-muted">{supplier.notes || "-"}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="py-10 text-center text-muted">
-                    Nenhum fornecedor cadastrado ainda.
+              {suppliers.length ? suppliers.map((s) => (
+                <tr key={s.id}>
+                  <td className="font-semibold text-fg">{s.name}</td>
+                  <td className="text-muted">{s.contact || s.email || "-"}</td>
+                  <td className="text-muted">{s.phone || "-"}</td>
+                  <td><span className="chip">{s.purchases.length}</span></td>
+                  <td>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        className="text-[0.74rem] text-muted transition hover:text-primary"
+                        popoverTarget={`edit-supplier-${s.id}`}
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <form action={deleteSupplierAction}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">
+                          <X size={13} />
+                        </button>
+                      </form>
+                    </div>
+
+                    <div
+                      id={`edit-supplier-${s.id}`}
+                      popover="auto"
+                      className="w-full max-w-sm rounded-2xl border border-border bg-surface p-5 shadow-xl backdrop:bg-fg/20"
+                    >
+                      <form action={updateSupplierAction} className="grid gap-3">
+                        <input type="hidden" name="id" value={s.id} />
+                        <p className="font-display text-base font-semibold text-fg">Editar fornecedor</p>
+                        <label className="label">Nome<input className="field" name="name" defaultValue={s.name} required /></label>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="label">CNPJ/CPF<input className="field" name="document" defaultValue={s.document ?? ""} /></label>
+                          <label className="label">Contato<input className="field" name="contact" defaultValue={s.contact ?? ""} /></label>
+                          <label className="label">Telefone<input className="field" name="phone" defaultValue={s.phone ?? ""} /></label>
+                          <label className="label">E-mail<input className="field" name="email" type="email" defaultValue={s.email ?? ""} /></label>
+                        </div>
+                        <label className="label">Observações<textarea className="field min-h-16" name="notes" defaultValue={s.notes ?? ""} /></label>
+                        <div className="flex gap-2">
+                          <button type="submit" className="button-primary flex-1">Salvar</button>
+                          <button type="button" popoverTargetAction="hide" popoverTarget={`edit-supplier-${s.id}`} className="rounded-xl border border-border px-4 py-2 text-sm text-muted hover:text-fg">Cancelar</button>
+                        </div>
+                      </form>
+                    </div>
                   </td>
                 </tr>
+              )) : (
+                <tr><td colSpan={5} className="py-10 text-center text-muted">Nenhum fornecedor cadastrado ainda.</td></tr>
               )}
             </tbody>
           </table>
