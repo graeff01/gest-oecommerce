@@ -6,7 +6,7 @@ import { SettingsTabs } from "@/components/settings-tabs";
 import { StoreSettingsForm } from "@/components/store-settings-form";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
-import { createUserAction } from "../actions";
+import { createUserAction, toggleUserActiveAction } from "../actions/settings";
 
 export default async function SettingsPage() {
   await connection();

@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
 import { prisma } from "@/lib/prisma";
-import { createSupplierAction, updateSupplierAction, deleteSupplierAction } from "../actions";
+import { createSupplierAction, updateSupplierAction, deleteSupplierAction } from "../actions/suppliers";
 
 export default async function SuppliersPage() {
   await connection();

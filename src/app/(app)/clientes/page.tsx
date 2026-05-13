@@ -4,7 +4,8 @@ import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
 import { date, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { createCustomerAction, updateCustomerAction, deleteCustomerAction, payInstallmentAction } from "../actions";
+import { createCustomerAction, updateCustomerAction, deleteCustomerAction } from "../actions/customers";
+import { payInstallmentAction } from "../actions/orders";
 
 export default async function CustomersPage() {
   await connection();

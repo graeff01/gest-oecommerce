@@ -6,7 +6,7 @@ import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { cancelOrderAction } from "../actions";
+import { cancelOrderAction } from "../actions/orders";
 
 const PAGE_SIZE = 20;
 

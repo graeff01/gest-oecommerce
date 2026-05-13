@@ -7,7 +7,7 @@ import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { createFinancialTransactionAction, deleteFinancialTransactionAction } from "../actions";
+import { createFinancialTransactionAction, deleteFinancialTransactionAction } from "../actions/finance";
 
 const PAGE_SIZE = 30;
 

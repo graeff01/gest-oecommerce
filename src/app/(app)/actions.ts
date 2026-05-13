@@ -1,2 +1,2 @@
-// Re-export de compatibilidade — o código real ficou em ./actions/
-export * from "./actions/index";
+// Este arquivo foi esvaziado — importe diretamente dos arquivos de domínio em ./actions/
+// Ex: import { createOrderAction } from "./actions/orders"
