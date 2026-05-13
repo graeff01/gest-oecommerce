@@ -13,7 +13,7 @@ export function ProductCreateModal() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group fixed bottom-24 right-5 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-[0_18px_42px_-12px_rgb(var(--primary)/0.65)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-14px_rgb(var(--primary)/0.7)] lg:bottom-8"
+        className="group fixed bottom-[6rem] right-5 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-[0_18px_42px_-12px_rgb(var(--primary)/0.65)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-14px_rgb(var(--primary)/0.7)] lg:bottom-8"
         title="Cadastrar produto"
       >
         <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
@@ -36,7 +36,7 @@ export function ProductCreateModal() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={{ duration: 0.22, ease: [0.22, 0.9, 0.32, 1] }}
-              className="grid w-full max-w-3xl gap-0 overflow-hidden rounded-3xl border border-border bg-elevated shadow-elev"
+              className="grid w-full max-w-3xl max-h-[92dvh] gap-0 overflow-y-auto overflow-x-hidden rounded-3xl border border-border bg-elevated shadow-elev"
               onClick={(event) => event.stopPropagation()}
             >
               {/* header com gradient */}
@@ -76,8 +76,8 @@ export function ProductCreateModal() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-4">
-                  <label className="label md:col-span-2">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  <label className="label sm:col-span-2 md:col-span-2">
                     Nome do produto<input className="field" name="name" placeholder="Ex: Tênis urbano couro" required />
                   </label>
                   <label className="label">
@@ -89,7 +89,7 @@ export function ProductCreateModal() {
                   <label className="label">
                     Gênero<input className="field" name="gender" placeholder="Feminino, Masculino, Unissex" />
                   </label>
-                  <label className="label md:col-span-3">
+                  <label className="label sm:col-span-2 md:col-span-3">
                     Tags<input className="field" name="tags" placeholder="tenis, casual, verao, premium" />
                   </label>
                   <input type="hidden" name="imageUrl" value="" />

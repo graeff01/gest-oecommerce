@@ -121,7 +121,7 @@ export function MetricCard({
         <div className="min-w-0">
           <p className={`text-[0.78rem] font-medium ${cfg.labelClass}`}>{label}</p>
           <strong
-            className={`mt-3 block font-display text-[1.7rem] font-semibold leading-none tracking-tight ${cfg.valueClass}`}
+            className={`mt-3 block truncate font-display text-[1.7rem] font-semibold leading-none tracking-tight ${cfg.valueClass}`}
           >
             {value}
           </strong>

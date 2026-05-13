@@ -70,9 +70,9 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                   orders.map((order) => (
                     <tr key={order.id}>
                       <td className="font-semibold text-fg">{order.code}</td>
-                      <td>{order.customer?.name ?? "Avulsa"}</td>
+                      <td className="max-w-[12rem] truncate">{order.customer?.name ?? "Avulsa"}</td>
                       <td>
-                        <span className="chip">{order.channel}</span>
+                        <span className="chip max-w-[8rem] truncate">{order.channel}</span>
                       </td>
                       <td>
                         <span className={ORDER_STATUS_TONES[order.status] ?? "status-pill"}>

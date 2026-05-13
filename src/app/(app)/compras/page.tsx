@@ -121,7 +121,7 @@ export default async function PurchasesPage() {
               purchases.map((purchase) => (
                 <tr key={purchase.id}>
                   <td className="font-semibold text-fg">{purchase.code}</td>
-                  <td>{purchase.supplier?.name ?? "-"}</td>
+                  <td className="max-w-[14rem] truncate">{purchase.supplier?.name ?? "-"}</td>
                   <td>
                     <span className="chip">{purchase.items.length}</span>
                   </td>

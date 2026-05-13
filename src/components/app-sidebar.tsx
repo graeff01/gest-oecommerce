@@ -47,11 +47,11 @@ export function AppSidebar({
   }, [router]);
 
   return (
-    <aside className="fixed bottom-3 left-3 right-3 z-20 rounded-2xl border border-border bg-surface/85 p-2 shadow-elev backdrop-blur-xl lg:bottom-4 lg:left-4 lg:right-auto lg:top-4 lg:flex lg:h-auto lg:w-[262px] lg:flex-col lg:overflow-y-auto lg:p-3">
-      {/* logo / brand */}
+    <aside className="fixed bottom-3 left-3 right-3 z-20 rounded-2xl border border-border bg-surface/90 p-2 shadow-elev backdrop-blur-xl lg:bottom-4 lg:left-4 lg:right-auto lg:top-4 lg:flex lg:h-[calc(100dvh-2rem)] lg:w-[262px] lg:flex-col lg:overflow-y-auto lg:p-3">
+      {/* logo / brand — só desktop */}
       <div className="hidden px-2 pb-5 pt-2 lg:block">
         <Link href="/" className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-surface-2">
-          <span className="relative grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
+          <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
             <ShoppingBag size={19} strokeWidth={2.4} />
             <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-accent text-fg">
               <Sparkles size={9} strokeWidth={2.5} />
@@ -68,7 +68,8 @@ export function AppSidebar({
         </Link>
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto lg:grid lg:gap-0.5">
+      {/* nav — horizontal scroll no mobile, grid vertical no desktop */}
+      <nav className="scrollbar-none flex gap-1 overflow-x-auto lg:grid lg:gap-0.5 lg:overflow-x-visible">
         {nav.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
@@ -79,7 +80,7 @@ export function AppSidebar({
               prefetch
               onMouseEnter={() => router.prefetch(item.href)}
               onFocus={() => router.prefetch(item.href)}
-              className={`group relative flex min-w-12 items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-[0.86rem] font-medium transition lg:justify-start ${
+              className={`group relative flex shrink-0 items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-[0.86rem] font-medium transition lg:shrink lg:justify-start ${
                 active ? "text-fg" : "text-muted hover:text-fg"
               }`}
               title={item.label}
@@ -94,7 +95,7 @@ export function AppSidebar({
               {active ? (
                 <span className="absolute left-0 top-1/2 hidden h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary lg:block" />
               ) : null}
-              <span className="relative z-10 grid h-7 w-7 place-items-center rounded-lg transition">
+              <span className="relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-lg transition">
                 <item.icon
                   size={17}
                   strokeWidth={active ? 2.4 : 1.9}

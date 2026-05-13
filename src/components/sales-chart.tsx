@@ -61,8 +61,8 @@ export function SalesChart({ data, compact = false }: { data: { day: string; tot
             axisLine={false}
             tickLine={false}
             tick={{ fill: colors.muted, fontSize: 11, fontWeight: 500 }}
-            tickFormatter={(value) => money(value).replace(",00", "").replace("R$", "R$ ")}
-            width={70}
+            tickFormatter={(value) => value === 0 ? "R$ 0" : `R$${(value / 1000) >= 1 ? `${(value/1000).toFixed(0)}k` : money(value).replace(",00","").replace("R$ ","")}`}
+            width={52}
           />
           <Tooltip
             cursor={{ stroke: colors.primary, strokeWidth: 1, strokeDasharray: "4 4" }}

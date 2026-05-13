@@ -54,8 +54,8 @@ export default async function SuppliersPage() {
             <tbody>
               {suppliers.length ? suppliers.map((s) => (
                 <tr key={s.id}>
-                  <td className="font-semibold text-fg">{s.name}</td>
-                  <td className="text-muted">{s.contact || s.email || "-"}</td>
+                  <td className="max-w-[14rem] truncate font-semibold text-fg">{s.name}</td>
+                  <td className="max-w-[12rem] truncate text-muted">{s.contact || s.email || "-"}</td>
                   <td className="text-muted">{s.phone || "-"}</td>
                   <td><span className="chip">{s.purchases.length}</span></td>
                   <td>
@@ -78,7 +78,7 @@ export default async function SuppliersPage() {
                     <div
                       id={`edit-supplier-${s.id}`}
                       popover="auto"
-                      className="w-full max-w-sm rounded-2xl border border-border bg-surface p-5 shadow-xl backdrop:bg-fg/20"
+                      className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-xl backdrop:bg-fg/20"
                     >
                       <form action={updateSupplierAction} className="grid gap-3">
                         <input type="hidden" name="id" value={s.id} />

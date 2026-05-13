@@ -145,13 +145,13 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
   return (
     <section className="grid gap-5">
       <div className="surface-card p-5">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="eyebrow">Catálogo</p>
             <h2 className="mt-1 font-display text-xl font-semibold tracking-tight text-fg">Seções e tags</h2>
             <p className="text-[0.86rem] font-normal text-muted">Filtre por seção, status de estoque ou busque diretamente.</p>
           </div>
-          <div className="flex flex-col gap-2 xl:w-[560px] xl:flex-row">
+          <div className="flex flex-col gap-2 lg:w-[520px] lg:flex-row">
             <label className="group relative flex h-11 flex-1 items-center gap-2 rounded-xl border border-border bg-surface-2/60 px-3 transition focus-within:border-primary/40 focus-within:bg-surface focus-within:shadow-ring">
               <Search size={17} className="text-subtle group-focus-within:text-primary" strokeWidth={2.1} />
               <input
@@ -187,7 +187,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
+        <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           <button
             type="button"
             onClick={() => setSelectedSection("__all__")}
@@ -285,7 +285,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                   ) : null}
                 </div>
                 <strong
-                  className={`relative mt-4 block font-display text-base font-semibold capitalize tracking-tight ${
+                  className={`relative mt-4 block truncate font-display text-base font-semibold capitalize tracking-tight ${
                     active ? "text-primary-fg" : "text-fg"
                   }`}
                 >
@@ -339,7 +339,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
           </div>
         ) : null}
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {activeProducts.map((product) => (
             <motion.button
               key={product.id}
@@ -351,12 +351,12 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
               onClick={() => setSelectedProductId(product.id)}
               className="surface-card grid gap-4 p-4 text-left"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
                   <ProductIcon product={product} />
                   <div className="min-w-0">
                     <h3 className="truncate font-display text-base font-semibold tracking-tight text-fg">{product.name}</h3>
-                    <p className="mt-0.5 text-[0.74rem] font-normal text-muted">
+                    <p className="mt-0.5 truncate text-[0.74rem] font-normal text-muted">
                       {product.brand || "Sem marca"} · {product.gender || "Geral"}
                     </p>
                   </div>
@@ -364,8 +364,8 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                 <span
                   className={
                     product.lowStock
-                      ? "status-pill pill-danger"
-                      : "status-pill"
+                      ? "status-pill pill-danger shrink-0 whitespace-nowrap"
+                      : "status-pill shrink-0 whitespace-nowrap"
                   }
                 >
                   {product.totalStock} un.
@@ -375,7 +375,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
               <div className="flex flex-wrap gap-1.5">
                 {product.tags.length ? (
                   product.tags.slice(0, 4).map((item) => (
-                    <span key={item} className="chip">
+                    <span key={item} className="chip max-w-[10rem] truncate">
                       #{item}
                     </span>
                   ))
@@ -388,7 +388,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                 {product.variants.slice(0, 5).map((variant) => (
                   <span
                     key={variant.id}
-                    className="rounded-md border border-border bg-surface-2/60 px-1.5 py-0.5 text-[0.7rem] font-semibold text-muted"
+                    className="max-w-[7rem] truncate rounded-md border border-border bg-surface-2/60 px-1.5 py-0.5 text-[0.7rem] font-semibold text-muted"
                   >
                     {variant.color}/{variant.size}
                   </span>
@@ -443,12 +443,12 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
               className="flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-elev"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-surface/60 p-5">
-                <div className="flex items-start gap-4">
-                  <ProductIcon product={selectedProduct} />
-                  <div>
-                    <h2 className="font-display text-2xl font-semibold tracking-tight text-fg">{selectedProduct.name}</h2>
-                    <p className="mt-1 text-[0.85rem] font-normal text-muted">
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-surface/60 p-4 sm:p-5">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                  <div className="hidden sm:block"><ProductIcon product={selectedProduct} /></div>
+                  <div className="min-w-0">
+                    <h2 className="truncate font-display text-lg font-semibold tracking-tight text-fg sm:text-2xl">{selectedProduct.name}</h2>
+                    <p className="mt-1 truncate text-[0.82rem] font-normal text-muted sm:text-[0.85rem]">
                       {selectedProduct.category} · {selectedProduct.brand || "Sem marca"} · {selectedProduct.gender || "Geral"}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-1.5">
@@ -478,8 +478,8 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
               </div>
 
               <div className="grid min-h-0 flex-1 overflow-y-auto xl:grid-cols-[1fr_380px] xl:overflow-hidden">
-                <section className="grid content-start gap-4 overflow-y-auto p-5">
-                  <div className="grid gap-3 md:grid-cols-3">
+                <section className="grid content-start gap-4 overflow-y-auto p-4 sm:p-5">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
                       <span className="grid h-9 w-9 place-items-center rounded-xl bg-success-soft text-success">
                         <Boxes size={18} strokeWidth={2.1} />
@@ -558,12 +558,12 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                               </form>
                             ) : (
                               <>
-                                <div className="flex items-center justify-between gap-2">
-                                  <strong className="font-display text-[0.92rem] font-semibold tracking-tight text-fg">
+                                <div className="flex min-w-0 items-center justify-between gap-2">
+                                  <strong className="min-w-0 truncate font-display text-[0.92rem] font-semibold tracking-tight text-fg">
                                     {variant.color} · {variant.size}
                                   </strong>
-                                  <div className="flex items-center gap-1">
-                                    <span className={variant.stockQuantity <= variant.minStock ? "status-pill pill-danger" : "status-pill"}>
+                                  <div className="flex shrink-0 items-center gap-1">
+                                    <span className={variant.stockQuantity <= variant.minStock ? "status-pill pill-danger shrink-0 whitespace-nowrap" : "status-pill shrink-0 whitespace-nowrap"}>
                                       {variant.stockQuantity} un.
                                     </span>
                                     <button type="button" onClick={() => { setAdjustingVariantId(variant.id); setEditingVariantId(null); }} className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-warning-soft hover:text-warning" title="Ajustar estoque">

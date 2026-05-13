@@ -76,8 +76,8 @@ export default async function CustomersPage() {
             <tbody>
               {customerDebt.length ? customerDebt.map((c) => (
                 <tr key={c.id}>
-                  <td className="font-semibold text-fg">{c.name}</td>
-                  <td className="text-muted">{c.phone || c.email || "-"}</td>
+                  <td className="max-w-[14rem] truncate font-semibold text-fg">{c.name}</td>
+                  <td className="max-w-[12rem] truncate text-muted">{c.phone || c.email || "-"}</td>
                   <td><span className="chip">{c.orders.length}</span></td>
                   <td className="text-right font-semibold text-fg">{money(c.totalSpent)}</td>
                   <td className="text-right font-semibold">
@@ -108,7 +108,7 @@ export default async function CustomersPage() {
                     <div
                       id={`edit-customer-${c.id}`}
                       popover="auto"
-                      className="w-full max-w-sm rounded-2xl border border-border bg-surface p-5 shadow-xl backdrop:bg-fg/20"
+                      className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-xl backdrop:bg-fg/20"
                     >
                       <form action={updateCustomerAction} className="grid gap-3">
                         <input type="hidden" name="id" value={c.id} />
@@ -167,7 +167,7 @@ export default async function CustomersPage() {
                 const overdue = due < today;
                 return (
                   <tr key={i.id}>
-                    <td className="font-semibold text-fg">{i.customerName}</td>
+                    <td className="max-w-[14rem] truncate font-semibold text-fg">{i.customerName}</td>
                     <td className="text-muted">{i.orderCode}</td>
                     <td><span className="chip">{i.sequence}/{i.totalCount}</span></td>
                     <td><span className={overdue ? "status-pill pill-danger" : "text-muted"}>{date(i.dueDate)}</span></td>

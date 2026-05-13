@@ -77,7 +77,7 @@ export default async function MovimentacoesPage({
       />
 
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
-        <label className="label flex-1 min-w-[200px]">
+        <label className="label w-full flex-1 sm:min-w-[200px] sm:w-auto">
           Produto
           <select className="field" name="product" defaultValue={productFilter ?? ""}>
             <option value="">Todos os produtos</option>
@@ -86,10 +86,10 @@ export default async function MovimentacoesPage({
             ))}
           </select>
         </label>
-        <div className="flex gap-2 self-end">
-          <button type="submit" className="button-primary h-10 px-4">Filtrar</button>
+        <div className="flex w-full gap-2 sm:w-auto sm:self-end">
+          <button type="submit" className="button-primary h-10 flex-1 px-4 sm:flex-none">Filtrar</button>
           {productFilter && (
-            <a href="/movimentacoes" className="flex h-10 items-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg">Limpar</a>
+            <a href="/movimentacoes" className="flex h-10 flex-1 items-center justify-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg sm:flex-none">Limpar</a>
           )}
         </div>
       </form>
@@ -119,12 +119,12 @@ export default async function MovimentacoesPage({
                         {TYPE_LABELS[m.type] ?? m.type}
                       </span>
                     </td>
-                    <td className="font-semibold text-fg">{m.variant.product.name}</td>
-                    <td className="text-muted">{m.variant.color} / {m.variant.size}</td>
-                    <td><span className="chip">{m.variant.sku}</span></td>
+                    <td className="max-w-[14rem] truncate font-semibold text-fg">{m.variant.product.name}</td>
+                    <td className="max-w-[8rem] truncate text-muted">{m.variant.color} / {m.variant.size}</td>
+                    <td><span className="chip max-w-[8rem] truncate">{m.variant.sku}</span></td>
                     <td className="font-semibold text-fg">{m.quantity}</td>
-                    <td className="text-muted">{m.reason}</td>
-                    <td className="text-muted">{m.user?.name ?? "-"}</td>
+                    <td className="max-w-[14rem] truncate text-muted">{m.reason}</td>
+                    <td className="max-w-[10rem] truncate text-muted">{m.user?.name ?? "-"}</td>
                     <td className="text-muted">{date(m.createdAt)}</td>
                   </tr>
                 ))

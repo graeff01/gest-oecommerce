@@ -24,7 +24,7 @@ export default async function DashboardPage() {
   const userName = user ? firstName(user.name) : "";
 
   return (
-    <AnimatedShell className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-4 overflow-hidden">
+    <AnimatedShell className="grid gap-4 xl:h-full xl:min-h-0 xl:grid-rows-[auto_auto_1fr] xl:overflow-hidden">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="eyebrow">Visão geral</p>
@@ -66,8 +66,8 @@ export default async function DashboardPage() {
         />
       </section>
 
-      <section className="grid min-h-0 gap-4 xl:grid-cols-[1.45fr_.85fr]">
-        <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4">
+      <section className="grid gap-4 xl:min-h-0 xl:grid-cols-[1.45fr_.85fr]">
+        <div className="grid gap-4 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
           <div className="surface-card p-5">
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -82,7 +82,7 @@ export default async function DashboardPage() {
             <SalesChart data={data.chart} compact />
           </div>
 
-          <div className="grid min-h-0 gap-4 xl:grid-cols-[.72fr_1.28fr]">
+          <div className="grid gap-4 xl:min-h-0 xl:grid-cols-[.72fr_1.28fr]">
             <div className="surface-card relative overflow-hidden p-5">
               <span className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-success/10 blur-2xl" />
               <div className="relative flex items-center justify-between">
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
               </p>
             </div>
 
-            <div className="table-shell min-h-0 overflow-hidden">
+            <div className="table-shell overflow-x-auto xl:min-h-0 xl:overflow-hidden">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="surface-card relative min-h-0 overflow-hidden p-5">
+        <div className="surface-card relative overflow-hidden p-5 xl:min-h-0">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="eyebrow">Atenção</p>

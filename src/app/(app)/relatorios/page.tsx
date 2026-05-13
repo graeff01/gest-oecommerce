@@ -57,16 +57,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         description="Resumo gerencial de vendas, margem, estoque parado e performance por produto."
       />
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
-        <label className="label flex-1 min-w-[140px]">
+        <label className="label w-full min-w-[140px] flex-1 sm:w-auto">
           De<input className="field" name="from" type="date" defaultValue={from ?? ""} />
         </label>
-        <label className="label flex-1 min-w-[140px]">
+        <label className="label w-full min-w-[140px] flex-1 sm:w-auto">
           Até<input className="field" name="to" type="date" defaultValue={to ?? ""} />
         </label>
-        <div className="flex gap-2 self-end">
-          <button type="submit" className="button-primary h-10 px-4">Filtrar</button>
+        <div className="flex w-full gap-2 sm:w-auto sm:self-end">
+          <button type="submit" className="button-primary h-10 flex-1 px-4 sm:flex-none">Filtrar</button>
           {(from || to) && (
-            <a href="/relatorios" className="flex h-10 items-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg">Limpar</a>
+            <a href="/relatorios" className="flex h-10 flex-1 items-center justify-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg sm:flex-none">Limpar</a>
           )}
         </div>
       </form>
@@ -83,7 +83,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <MetricCard label="Gastos" value={money(expenses)} detail="Despesas totais" icon={PiggyBank} tone="danger" />
         <MetricCard label="Valor estoque" value={money(stockValue)} detail="Custo em mercadoria" icon={Warehouse} tone="warning" />
       </section>
-      <section className="grid gap-5 xl:grid-cols-2">
+      <section className="grid gap-5 md:grid-cols-2">
         <div className="table-shell overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -97,7 +97,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
               {ranking.length ? (
                 ranking.map((item) => (
                   <tr key={item.name}>
-                    <td className="font-semibold text-fg">{item.name}</td>
+                    <td className="max-w-[18rem] truncate font-semibold text-fg">{item.name}</td>
                     <td>
                       <span className="chip">{item.quantity}</span>
                     </td>
@@ -138,8 +138,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 }
                 return critical.map((variant) => (
                   <tr key={variant.id}>
-                    <td className="font-semibold text-fg">{variant.product.name}</td>
-                    <td className="text-muted">{variant.sku}</td>
+                    <td className="max-w-[14rem] truncate font-semibold text-fg">{variant.product.name}</td>
+                    <td className="max-w-[8rem] truncate text-muted">{variant.sku}</td>
                     <td>
                       <span className="status-pill pill-danger">{variant.stockQuantity}</span>
                     </td>

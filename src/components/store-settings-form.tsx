@@ -124,8 +124,8 @@ export function StoreSettingsForm({ initialData }: Props) {
           </span>
         </label>
 
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <div className="min-w-0">
             {savedAt ? (
               <p className="inline-flex items-center gap-1.5 text-[0.78rem] font-medium text-success">
                 <Sparkles size={13} /> Configurações salvas
@@ -134,7 +134,7 @@ export function StoreSettingsForm({ initialData }: Props) {
               <p className="text-[0.78rem] font-normal text-muted">As alterações refletem imediatamente no login.</p>
             )}
           </div>
-          <button type="button" onClick={submit} disabled={pending} className="button-primary">
+          <button type="button" onClick={submit} disabled={pending} className="button-primary shrink-0">
             {pending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} strokeWidth={2.2} />}
             {pending ? "Salvando..." : "Salvar"}
           </button>

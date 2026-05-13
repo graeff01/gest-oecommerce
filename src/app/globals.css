@@ -494,9 +494,15 @@ h1, h2, h3, h4, h5 {
   border-radius: 0.5rem;
 }
 
-/* responsive table */
-@media (max-width: 820px) {
-  .data-table { min-width: 760px; }
+/* responsive table — scroll horizontal em vez de quebrar layout */
+@media (max-width: 1024px) {
+  .data-table { min-width: 640px; }
+}
+
+/* em telas muito estreitas reduz padding das células */
+@media (max-width: 480px) {
+  .data-table th,
+  .data-table td { padding: 0.65rem 0.65rem; }
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -545,6 +551,10 @@ h1, h2, h3, h4, h5 {
   color: rgb(var(--primary));
   border-color: rgb(var(--primary) / 0.25);
 }
+
+/* oculta scrollbar mas mantém scroll funcional */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
 
 /* keycap minimalista */
 .kbd {

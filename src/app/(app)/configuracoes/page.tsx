@@ -81,16 +81,16 @@ export default async function SettingsPage() {
                       {users.length ? (
                         users.map((user) => (
                           <tr key={user.id}>
-                            <td className="font-semibold text-fg">{user.name}</td>
-                            <td className="text-muted">{user.email}</td>
+                            <td className="max-w-[12rem] truncate font-semibold text-fg">{user.name}</td>
+                            <td className="max-w-[14rem] truncate text-muted">{user.email}</td>
                             <td>
                               <span className="status-pill pill-primary">{user.role}</span>
                             </td>
                             <td>
                               <form action={toggleUserActiveAction} className="flex items-center gap-2">
                                 <input type="hidden" name="id" value={user.id} />
-                                <button type="submit" className={`status-pill transition hover:opacity-70 ${user.active ? "" : "pill-neutral"}`}>
-                                  {user.active ? "Ativo — clique para desativar" : "Inativo — clique para ativar"}
+                                <button type="submit" className={`status-pill whitespace-nowrap transition hover:opacity-70 ${user.active ? "" : "pill-neutral"}`}>
+                                  {user.active ? "Ativo" : "Inativo"}
                                 </button>
                               </form>
                             </td>

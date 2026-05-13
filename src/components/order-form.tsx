@@ -128,7 +128,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
             1º vencimento
             <input className="field" name="firstDueDate" type="date" defaultValue={defaultFirstDue} required />
           </label>
-          <p className="md:col-span-2 text-[0.72rem] text-muted">
+          <p className="col-span-full text-[0.72rem] text-muted">
             Receita só entra no financeiro quando você marcar cada parcela como paga.
           </p>
         </div>
