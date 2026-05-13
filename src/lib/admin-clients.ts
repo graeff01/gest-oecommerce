@@ -79,7 +79,6 @@ export async function fetchClientSnapshot(config: ClientConfig): Promise<ClientS
       prisma.order.findMany({
         take: 5,
         orderBy: { createdAt: "desc" },
-        include: { customer: { select: { name: true } } },
         select: { code: true, status: true, total: true, createdAt: true, customer: { select: { name: true } } }
       })
     ]);

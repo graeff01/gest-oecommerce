@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 const cookieName = "gestao_session";
 
-function resolveSecret() {
+function getSecret() {
   const value = process.env.AUTH_SECRET;
   if (!value || value.length < 32) {
     if (process.env.NODE_ENV === "production") {
@@ -18,8 +18,6 @@ function resolveSecret() {
   }
   return value;
 }
-
-const secret = new TextEncoder().encode(resolveSecret());
 
 export type SessionUser = {
   id: string;
@@ -37,6 +35,7 @@ export async function hashPassword(password: string) {
 }
 
 export async function createSession(user: SessionUser) {
+  const secret = new TextEncoder().encode(getSecret());
   const token = await new SignJWT(user)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -65,6 +64,7 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!token) return null;
 
   try {
+    const secret = new TextEncoder().encode(getSecret());
     const { payload } = await jwtVerify(token, secret);
     return {
       id: String(payload.id),
