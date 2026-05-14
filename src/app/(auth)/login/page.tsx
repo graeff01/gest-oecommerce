@@ -1,10 +1,16 @@
+import { redirect } from "next/navigation";
 import { ShieldCheck, ShoppingBag } from "lucide-react";
 import { LoginForm } from "./login-form";
+import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
+  // Primeiro acesso: nenhum usuário cadastrado → setup
+  const userCount = await prisma.user.count();
+  if (userCount === 0) redirect("/setup");
+
   const settings = await getStoreSettings();
   const hasImage = Boolean(settings.loginImageUrl);
 
