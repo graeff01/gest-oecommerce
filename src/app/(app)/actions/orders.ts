@@ -10,48 +10,67 @@ const decimal = z.coerce.number().min(0);
 
 export async function createOrderAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "SALES", "FINANCE"]);
+
+  const raw = Object.fromEntries(formData);
+
+  // itens do carrinho: JSON enviado pelo form client-side
+  const itemsRaw = z.string().min(1).parse(raw.items);
+  const cartItems = z.array(z.object({
+    variantId: z.string().min(1),
+    quantity: z.coerce.number().int().min(1)
+  })).min(1).parse(JSON.parse(itemsRaw));
+
+  // datas de parcelas: JSON ou vazio
+  const dueDatesRaw = typeof raw.dueDates === "string" && raw.dueDates ? raw.dueDates : null;
+  const dueDates: string[] | null = dueDatesRaw ? JSON.parse(dueDatesRaw) : null;
+
   const parsed = z.object({
     customerId: z.string().optional(),
-    variantId: z.string().min(1),
-    quantity: z.coerce.number().int().min(1),
     discount: decimal.default(0),
     fee: decimal.default(0),
     paymentMethod: z.enum(["PIX", "CREDIT_CARD", "DEBIT_CARD", "CASH", "BANK_SLIP", "MARKETPLACE", "CREDIARIO"]),
-    channel: z.string().min(2),
-    notes: z.string().optional(),
-    installmentCount: z.coerce.number().int().min(1).max(36).optional(),
-    firstDueDate: z.string().optional()
-  }).parse(Object.fromEntries(formData));
+    channel: z.string().min(1),
+    notes: z.string().optional()
+  }).parse(raw);
 
   const isCrediario = parsed.paymentMethod === "CREDIARIO";
 
   if (isCrediario) {
     if (!parsed.customerId) throw new Error("Crediário exige selecionar um cliente.");
-    if (!parsed.installmentCount) throw new Error("Informe a quantidade de parcelas para o crediário.");
+    if (!dueDates || dueDates.length === 0) throw new Error("Informe as datas de vencimento das parcelas.");
   }
 
   await prisma.$transaction(async (tx) => {
-    const variant = await tx.productVariant.findUniqueOrThrow({
-      where: { id: parsed.variantId },
-      include: { product: true }
+    // busca todas as variantes do carrinho de uma vez
+    const variantIds = cartItems.map((item) => item.variantId);
+    const variantsDb = await tx.productVariant.findMany({
+      where: { id: { in: variantIds } }
     });
 
-    if (variant.stockQuantity < parsed.quantity) throw new Error("Estoque insuficiente para esta venda.");
+    const variantMap = new Map(variantsDb.map((v) => [v.id, v]));
 
-    const subtotal = Number(variant.salePrice) * parsed.quantity;
+    // valida estoque e calcula subtotal
+    let subtotal = 0;
+    for (const item of cartItems) {
+      const v = variantMap.get(item.variantId);
+      if (!v) throw new Error("Produto não encontrado.");
+      if (v.stockQuantity < item.quantity) throw new Error(`Estoque insuficiente para ${v.sku}.`);
+      subtotal += Number(v.salePrice) * item.quantity;
+    }
+
     const total = subtotal - parsed.discount + parsed.fee;
-
     if (total < 0) throw new Error("O desconto não pode deixar o total da venda negativo.");
 
     const code = `PED-${randomUUID().slice(0, 8).toUpperCase()}`;
 
-    // Baixa atômica: só executa se o estoque ainda for suficiente
-    const stockUpdate = await tx.productVariant.updateMany({
-      where: { id: variant.id, stockQuantity: { gte: parsed.quantity } },
-      data: { stockQuantity: { decrement: parsed.quantity } }
-    });
-
-    if (stockUpdate.count !== 1) throw new Error("Estoque insuficiente para esta venda.");
+    // baixa atômica de estoque para cada item
+    for (const item of cartItems) {
+      const stockUpdate = await tx.productVariant.updateMany({
+        where: { id: item.variantId, stockQuantity: { gte: item.quantity } },
+        data: { stockQuantity: { decrement: item.quantity } }
+      });
+      if (stockUpdate.count !== 1) throw new Error(`Estoque insuficiente para uma das variações.`);
+    }
 
     const order = await tx.order.create({
       data: {
@@ -66,40 +85,41 @@ export async function createOrderAction(formData: FormData) {
         total,
         notes: parsed.notes,
         items: {
-          create: {
-            variantId: variant.id,
-            quantity: parsed.quantity,
-            unitPrice: variant.salePrice,
-            costPrice: variant.costPrice
-          }
+          create: cartItems.map((item) => {
+            const v = variantMap.get(item.variantId)!;
+            return {
+              variantId: item.variantId,
+              quantity: item.quantity,
+              unitPrice: v.salePrice,
+              costPrice: v.costPrice
+            };
+          })
         }
       }
     });
 
-    await tx.stockMovement.create({
-      data: { variantId: variant.id, userId: user.id, type: "SALE", quantity: parsed.quantity, reason: `Venda ${code}` }
-    });
+    // movimentações de estoque
+    for (const item of cartItems) {
+      await tx.stockMovement.create({
+        data: { variantId: item.variantId, userId: user.id, type: "SALE", quantity: item.quantity, reason: `Venda ${code}` }
+      });
+    }
 
-    if (isCrediario && parsed.installmentCount) {
-      const count = parsed.installmentCount;
-      const baseDue = parsed.firstDueDate ? new Date(parsed.firstDueDate) : new Date();
+    if (isCrediario && dueDates && dueDates.length > 0) {
+      const count = dueDates.length;
       const cents = Math.round(total * 100);
       const baseCents = Math.floor(cents / count);
       const remainder = cents - baseCents * count;
 
-      const installments = Array.from({ length: count }, (_, i) => {
-        const due = new Date(baseDue);
-        due.setMonth(due.getMonth() + i);
-        return {
+      await tx.installment.createMany({
+        data: dueDates.map((dateStr, i) => ({
           orderId: order.id,
           sequence: i + 1,
           totalCount: count,
-          dueDate: due,
+          dueDate: new Date(dateStr),
           amount: (baseCents + (i === count - 1 ? remainder : 0)) / 100
-        };
+        }))
       });
-
-      await tx.installment.createMany({ data: installments });
     } else {
       await tx.financialTransaction.create({
         data: {
@@ -122,6 +142,7 @@ export async function createOrderAction(formData: FormData) {
   revalidatePath("/financeiro");
   revalidatePath("/produtos");
   revalidatePath("/clientes");
+  revalidatePath("/movimentacoes");
   revalidatePath("/");
 }
 
