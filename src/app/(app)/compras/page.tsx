@@ -125,8 +125,8 @@ export default async function PurchasesPage() {
                   <td>
                     <span className="chip">{purchase.items.length}</span>
                   </td>
-                  <td className="text-right text-muted">{money(purchase.freight)}</td>
-                  <td className="text-right font-semibold text-fg">{money(purchase.total)}</td>
+                  <td className="whitespace-nowrap text-right text-muted">{money(purchase.freight)}</td>
+                  <td className="whitespace-nowrap text-right font-semibold text-fg">{money(purchase.total)}</td>
                 </tr>
               ))
             ) : (

@@ -477,9 +477,9 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                 </div>
               </div>
 
-              <div className="grid min-h-0 flex-1 overflow-y-auto xl:grid-cols-[1fr_380px] xl:overflow-hidden">
+              <div className="grid min-h-0 flex-1 overflow-y-auto xl:grid-cols-[1fr_340px] xl:overflow-hidden">
                 <section className="grid content-start gap-4 overflow-y-auto p-4 sm:p-5">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
                       <span className="grid h-9 w-9 place-items-center rounded-xl bg-success-soft text-success">
                         <Boxes size={18} strokeWidth={2.1} />
@@ -514,7 +514,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                   <div className="grid gap-2">
                     <h3 className="text-[0.74rem] font-semibold uppercase tracking-wide text-muted">Variações do modelo</h3>
                     {selectedProduct.variants.length ? (
-                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="grid gap-2 sm:grid-cols-2">
                         {selectedProduct.variants.map((variant) => (
                           <div key={variant.id} className="rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/30 hover:shadow-soft">
                             {editingVariantId === variant.id ? (

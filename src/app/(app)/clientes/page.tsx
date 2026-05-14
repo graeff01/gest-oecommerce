@@ -201,8 +201,8 @@ export default async function CustomersPage() {
                     <td className="text-muted">{i.orderCode}</td>
                     <td><span className="chip">{i.sequence}/{i.totalCount}</span></td>
                     <td><span className={overdue ? "status-pill pill-danger" : "text-muted"}>{date(i.dueDate)}</span></td>
-                    <td className="text-right font-semibold text-fg">{money(i.amount)}</td>
-                    <td className="text-right">
+                    <td className="whitespace-nowrap text-right font-semibold text-fg">{money(i.amount)}</td>
+                    <td className="whitespace-nowrap text-right">
                       <form action={payInstallmentAction} className="flex items-center justify-end gap-2">
                         <input type="hidden" name="installmentId" value={i.id} />
                         <select className="field h-8 py-1 text-xs" name="paymentMethod" defaultValue="PIX">

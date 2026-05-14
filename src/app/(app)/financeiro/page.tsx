@@ -153,9 +153,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                       <td>
                         <span className="chip max-w-[10rem] truncate">{item.category}</span>
                       </td>
-                      <td className="text-right font-semibold text-fg">{money(item.amount)}</td>
-                      <td className="text-muted">{date(item.paidAt)}</td>
-                      <td className="text-muted">{date(item.dueDate)}</td>
+                      <td className="whitespace-nowrap text-right font-semibold text-fg">{money(item.amount)}</td>
+                      <td className="whitespace-nowrap text-muted">{date(item.paidAt)}</td>
+                      <td className="whitespace-nowrap text-muted">{date(item.dueDate)}</td>
                       <td>
                         <form action={deleteFinancialTransactionAction}>
                           <input type="hidden" name="id" value={item.id} />

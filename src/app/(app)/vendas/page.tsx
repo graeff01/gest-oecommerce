@@ -79,9 +79,9 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                           {ORDER_STATUS_LABELS[order.status] ?? order.status}
                         </span>
                       </td>
-                      <td className="text-right font-semibold text-fg">{money(order.total)}</td>
-                      <td className="text-muted">{date(order.createdAt)}</td>
-                      <td>
+                      <td className="whitespace-nowrap text-right font-semibold text-fg">{money(order.total)}</td>
+                      <td className="whitespace-nowrap text-muted">{date(order.createdAt)}</td>
+                      <td className="whitespace-nowrap">
                         {order.status !== "CANCELED" && order.status !== "DELIVERED" ? (
                           <div className="flex items-center gap-1.5">
                             <form action={updateOrderStatusAction} className="flex items-center gap-1">

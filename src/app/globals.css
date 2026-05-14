@@ -494,9 +494,9 @@ h1, h2, h3, h4, h5 {
   border-radius: 0.5rem;
 }
 
-/* responsive table — scroll horizontal em vez de quebrar layout */
-@media (max-width: 1024px) {
-  .data-table { min-width: 640px; }
+/* responsive table — scroll horizontal em telas menores que tablet */
+@media (max-width: 767px) {
+  .data-table { min-width: 560px; }
 }
 
 /* em telas muito estreitas reduz padding das células */

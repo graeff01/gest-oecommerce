@@ -101,8 +101,7 @@ export default async function MovimentacoesPage({
               <tr>
                 <th>Tipo</th>
                 <th>Produto</th>
-                <th>Variação</th>
-                <th>SKU</th>
+                <th>Variação / SKU</th>
                 <th>Qtd.</th>
                 <th>Motivo</th>
                 <th>Usuário</th>
@@ -120,8 +119,10 @@ export default async function MovimentacoesPage({
                       </span>
                     </td>
                     <td className="max-w-[14rem] truncate font-semibold text-fg">{m.variant.product.name}</td>
-                    <td className="max-w-[8rem] truncate text-muted">{m.variant.color} / {m.variant.size}</td>
-                    <td><span className="chip max-w-[8rem] truncate">{m.variant.sku}</span></td>
+                    <td className="max-w-[12rem]">
+                      <p className="truncate text-[0.82rem] font-medium text-fg">{m.variant.color} / {m.variant.size}</p>
+                      <p className="truncate text-[0.74rem] text-muted">{m.variant.sku}</p>
+                    </td>
                     <td className="font-semibold text-fg">{m.quantity}</td>
                     <td className="max-w-[14rem] truncate text-muted">{m.reason}</td>
                     <td className="max-w-[10rem] truncate text-muted">{m.user?.name ?? "-"}</td>
@@ -130,7 +131,7 @@ export default async function MovimentacoesPage({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-muted">
+                  <td colSpan={7} className="py-10 text-center text-muted">
                     Nenhuma movimentação registrada.
                   </td>
                 </tr>

@@ -66,7 +66,7 @@ export default async function DashboardPage() {
         />
       </section>
 
-      <section className="grid gap-4 xl:min-h-0 xl:grid-cols-[1.45fr_.85fr]">
+      <section className="grid gap-4 xl:min-h-0 xl:grid-cols-[1fr_340px]">
         <div className="grid gap-4 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
           <div className="surface-card p-5">
             <div className="mb-3 flex items-center justify-between">

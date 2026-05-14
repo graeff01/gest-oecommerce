@@ -76,8 +76,8 @@ export function ProductCreateModal() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-                  <label className="label sm:col-span-2 md:col-span-2">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="label sm:col-span-2">
                     Nome do produto<input className="field" name="name" placeholder="Ex: Tênis urbano couro" required />
                   </label>
                   <label className="label">
@@ -89,7 +89,7 @@ export function ProductCreateModal() {
                   <label className="label">
                     Gênero<input className="field" name="gender" placeholder="Feminino, Masculino, Unissex" />
                   </label>
-                  <label className="label sm:col-span-2 md:col-span-3">
+                  <label className="label">
                     Tags<input className="field" name="tags" placeholder="tenis, casual, verao, premium" />
                   </label>
                   <input type="hidden" name="imageUrl" value="" />
