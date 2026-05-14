@@ -1,4 +1,4 @@
-import { Download, Pencil, UsersRound, Wallet, X } from "lucide-react";
+import { CalendarDays, Download, Pencil, UsersRound, Wallet, X } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -34,6 +34,36 @@ export default async function CustomersPage() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Agenda: próximos 30 dias, agrupado por data
+  const in30Days = new Date(today);
+  in30Days.setDate(in30Days.getDate() + 30);
+
+  const scheduleMap = new Map<string, { total: number; count: number; overdue: boolean }>();
+  for (const inst of openInstallments) {
+    const due = new Date(inst.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const key = due.toISOString().slice(0, 10);
+    const overdue = due < today;
+    const existing = scheduleMap.get(key);
+    if (existing) {
+      existing.total += Number(inst.amount);
+      existing.count += 1;
+    } else {
+      scheduleMap.set(key, { total: Number(inst.amount), count: 1, overdue });
+    }
+  }
+  // Sort: overdue first (desc), then upcoming (asc)
+  const scheduleEntries = Array.from(scheduleMap.entries()).sort(([a], [b]) => {
+    const da = new Date(a).getTime();
+    const db = new Date(b).getTime();
+    const todayTs = today.getTime();
+    const aOver = da < todayTs;
+    const bOver = db < todayTs;
+    if (aOver && !bOver) return -1;
+    if (!aOver && bOver) return 1;
+    return aOver ? db - da : da - db; // overdue: mais antigo primeiro; futuro: mais próximo primeiro
+  });
 
   return (
     <AnimatedShell className="grid gap-6">
@@ -194,6 +224,46 @@ export default async function CustomersPage() {
           </table>
         </div>
       </section>
+      {/* agenda de recebimentos */}
+      {scheduleEntries.length > 0 && (
+        <section className="surface-card grid gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
+              <CalendarDays size={17} strokeWidth={2.1} />
+            </span>
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Agenda de recebimentos</h2>
+              <p className="text-[0.76rem] font-normal text-muted">Previsão por dia com base nas parcelas em aberto.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {scheduleEntries.map(([dateKey, { total, count, overdue }]) => {
+              const d = new Date(dateKey + "T12:00:00");
+              const isToday = dateKey === today.toISOString().slice(0, 10);
+              return (
+                <div
+                  key={dateKey}
+                  className={`flex min-w-[9rem] flex-1 flex-col gap-1 rounded-xl border px-4 py-3 ${
+                    overdue
+                      ? "border-danger/25 bg-danger-soft"
+                      : isToday
+                        ? "border-success/30 bg-success-soft"
+                        : "border-border bg-surface-2/40"
+                  }`}
+                >
+                  <span className={`text-[0.72rem] font-semibold uppercase tracking-wide ${overdue ? "text-danger" : isToday ? "text-success" : "text-muted"}`}>
+                    {overdue ? "Vencido · " : isToday ? "Hoje · " : ""}
+                    {d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
+                  </span>
+                  <span className="font-display text-lg font-semibold text-fg">{money(total)}</span>
+                  <span className="text-[0.74rem] text-muted">{count} {count === 1 ? "parcela" : "parcelas"}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </AnimatedShell>
   );
 }

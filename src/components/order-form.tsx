@@ -104,9 +104,17 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
     );
   }
 
+  const [discount, setDiscount] = useState(0);
+  const [fee, setFee] = useState(0);
+
   const cartTotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [cart]
+  );
+
+  const orderTotal = useMemo(
+    () => Math.max(0, cartTotal - discount + fee),
+    [cartTotal, discount, fee]
   );
 
   // submete: injeta cart como JSON num input hidden, instalment dates como JSON
@@ -138,7 +146,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
     datesInput.value = isCrediario ? JSON.stringify(dueDates) : "";
   }
 
-  const cartSubtotal = cartTotal;
+  const cartSubtotal = cartTotal; // kept for the subtotal line in cart summary
 
   return (
     <form
@@ -266,12 +274,53 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
           Canal<input className="field" name="channel" defaultValue="Instagram" required />
         </label>
         <label className="label">
-          Desconto<input className="field" name="discount" type="number" min="0" step="0.01" defaultValue="0" />
+          Desconto (R$)
+          <input
+            className="field"
+            name="discount"
+            type="number"
+            min="0"
+            max={cartTotal}
+            step="0.01"
+            value={discount}
+            onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
+          />
         </label>
         <label className="label">
-          Taxa<input className="field" name="fee" type="number" min="0" step="0.01" defaultValue="0" />
+          Taxa (R$)
+          <input
+            className="field"
+            name="fee"
+            type="number"
+            min="0"
+            step="0.01"
+            value={fee}
+            onChange={(e) => setFee(Math.max(0, Number(e.target.value)))}
+          />
         </label>
       </div>
+
+      {/* resumo do total quando há desconto ou taxa */}
+      {(discount > 0 || fee > 0) && cart.length > 0 && (
+        <div className="flex items-center justify-end gap-3 rounded-xl border border-border bg-surface-2/40 px-4 py-2.5 text-[0.83rem]">
+          <span className="text-muted">Subtotal</span>
+          <span className="font-medium text-fg">{money(cartTotal)}</span>
+          {discount > 0 && (
+            <>
+              <span className="text-muted">- Desconto</span>
+              <span className="font-medium text-success">− {money(discount)}</span>
+            </>
+          )}
+          {fee > 0 && (
+            <>
+              <span className="text-muted">+ Taxa</span>
+              <span className="font-medium text-warning">+ {money(fee)}</span>
+            </>
+          )}
+          <span className="text-muted">= Total</span>
+          <span className="font-semibold text-fg">{money(orderTotal)}</span>
+        </div>
+      )}
 
       {/* pagamento */}
       <label className="label">
@@ -312,7 +361,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
 
           <div className="grid gap-2 sm:grid-cols-2">
             {dueDates.map((d, i) => {
-              const parcValue = cartSubtotal / installmentCount;
+              const parcValue = orderTotal / installmentCount;
               return (
                 <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
                   <span className="w-16 shrink-0 text-[0.74rem] font-semibold text-muted">
@@ -342,7 +391,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
       </label>
 
       <button className="button-primary" disabled={cart.length === 0}>
-        Registrar venda {cart.length > 0 ? `· ${money(cartSubtotal)}` : ""}
+        Registrar venda {cart.length > 0 ? `· ${money(orderTotal)}` : ""}
       </button>
     </form>
   );
