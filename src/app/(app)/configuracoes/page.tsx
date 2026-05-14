@@ -1,4 +1,4 @@
-import { ShieldCheck, Store, UsersRound } from "lucide-react";
+import { AlertTriangle, DatabaseBackup, Download, ShieldCheck, Store, UsersRound } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -10,9 +10,19 @@ import { createUserAction, toggleUserActiveAction } from "../actions/settings";
 
 export default async function SettingsPage() {
   await connection();
-  const [users, settings] = await Promise.all([
+  const [users, settings, counts] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
-    getStoreSettings()
+    getStoreSettings(),
+    Promise.all([
+      prisma.customer.count(),
+      prisma.order.count(),
+      prisma.product.count(),
+      prisma.productVariant.count(),
+      prisma.financialTransaction.count(),
+      prisma.stockMovement.count()
+    ]).then(([customers, orders, products, variants, transactions, movements]) => ({
+      customers, orders, products, variants, transactions, movements
+    }))
   ]);
 
   return (
@@ -30,6 +40,73 @@ export default async function SettingsPage() {
             label: "Identidade da loja",
             icon: <Store size={16} strokeWidth={2.1} />,
             content: <StoreSettingsForm initialData={settings} />
+          },
+          {
+            id: "backup",
+            label: "Backup",
+            icon: <DatabaseBackup size={16} strokeWidth={2.1} />,
+            content: (
+              <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+                {/* painel de aviso */}
+                <div className="surface-card grid gap-4 p-5">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-warning to-warning/70 text-primary-fg">
+                      <DatabaseBackup size={17} strokeWidth={2.1} />
+                    </span>
+                    <div>
+                      <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Backup dos dados</h2>
+                      <p className="text-[0.76rem] font-normal text-muted">Exporta tudo em um arquivo JSON completo.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warning" strokeWidth={2.1} />
+                    <div className="text-[0.82rem] leading-5 text-muted">
+                      <strong className="font-semibold text-fg">Plano Railway sem backup automático.</strong> Faça o download
+                      abaixo regularmente e guarde o arquivo em um lugar seguro (Google Drive, e-mail ou HD externo).
+                      Recomendamos <strong className="text-fg">pelo menos uma vez por semana</strong>.
+                    </div>
+                  </div>
+
+                  <a
+                    href="/api/backup"
+                    download
+                    className="button-primary flex items-center justify-center gap-2"
+                  >
+                    <Download size={16} strokeWidth={2.2} />
+                    Baixar backup completo (.json)
+                  </a>
+
+                  <p className="text-[0.72rem] text-muted">
+                    O arquivo contém todos os dados: clientes, pedidos, produtos, estoque, financeiro e movimentações.
+                    Apenas administradores podem gerar o backup.
+                  </p>
+                </div>
+
+                {/* o que está no backup */}
+                <div className="surface-card grid content-start gap-4 p-5">
+                  <p className="text-[0.74rem] font-semibold uppercase tracking-wide text-muted">O que está incluído</p>
+                  <div className="grid gap-2">
+                    {[
+                      { label: "Clientes", value: counts.customers },
+                      { label: "Pedidos", value: counts.orders },
+                      { label: "Produtos", value: counts.products },
+                      { label: "Variações (SKUs)", value: counts.variants },
+                      { label: "Lançamentos financeiros", value: counts.transactions },
+                      { label: "Movimentações de estoque", value: counts.movements }
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex items-center justify-between rounded-xl border border-border bg-surface-2/40 px-4 py-2.5">
+                        <span className="text-[0.86rem] font-medium text-muted">{label}</span>
+                        <span className="font-display text-base font-semibold text-fg">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[0.72rem] text-muted">
+                    Inclui também: fornecedores, compras, crediário e configurações da loja.
+                  </p>
+                </div>
+              </div>
+            )
           },
           {
             id: "users",
