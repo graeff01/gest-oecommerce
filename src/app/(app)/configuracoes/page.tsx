@@ -1,16 +1,19 @@
-import { AlertTriangle, DatabaseBackup, Download, ShieldCheck, Store, UsersRound } from "lucide-react";
+import { AlertTriangle, DatabaseBackup, Download, ShieldCheck, Store, UserCircle, UsersRound } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
+import { ProfileForm } from "@/components/profile-form";
 import { SettingsTabs } from "@/components/settings-tabs";
 import { StoreSettingsForm } from "@/components/store-settings-form";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
 import { createUserAction, toggleUserActiveAction } from "../actions/settings";
 
 export default async function SettingsPage() {
   await connection();
-  const [users, settings, counts] = await Promise.all([
+  const [currentUser, users, settings, counts] = await Promise.all([
+    requireUser(),
     prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
     getStoreSettings(),
     Promise.all([
@@ -40,6 +43,42 @@ export default async function SettingsPage() {
             label: "Identidade da loja",
             icon: <Store size={16} strokeWidth={2.1} />,
             content: <StoreSettingsForm initialData={settings} />
+          },
+          {
+            id: "profile",
+            label: "Minha conta",
+            icon: <UserCircle size={16} strokeWidth={2.1} />,
+            content: (
+              <div className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
+                <div className="surface-card grid gap-4 p-5">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
+                      <UserCircle size={17} strokeWidth={2.1} />
+                    </span>
+                    <div>
+                      <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Minha conta</h2>
+                      <p className="text-[0.76rem] font-normal text-muted">Altere seu nome, e-mail ou senha de acesso.</p>
+                    </div>
+                  </div>
+                  <ProfileForm initialName={currentUser.name} initialEmail={currentUser.email} />
+                </div>
+                <div className="surface-card grid content-start gap-4 p-5">
+                  <p className="text-[0.74rem] font-semibold uppercase tracking-wide text-muted">Sobre segurança</p>
+                  <div className="grid gap-3">
+                    {[
+                      { title: "Senha criptografada", desc: "Sua senha nunca é armazenada em texto simples — apenas um hash seguro." },
+                      { title: "Sessão por 8 horas", desc: "Após esse período você precisará entrar novamente automaticamente." },
+                      { title: "Acesso por perfil", desc: "Cada usuário tem permissões de acordo com seu perfil: Admin, Financeiro, Estoque ou Vendas." }
+                    ].map(({ title, desc }) => (
+                      <div key={title} className="rounded-xl border border-border bg-surface-2/40 px-4 py-3">
+                        <p className="text-[0.86rem] font-semibold text-fg">{title}</p>
+                        <p className="mt-0.5 text-[0.78rem] leading-5 text-muted">{desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
           },
           {
             id: "backup",

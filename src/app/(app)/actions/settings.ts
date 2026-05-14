@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { hashPassword, requireRole } from "@/lib/auth";
+import { createSession, hashPassword, requireRole, requireUser, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateStoreSettings } from "@/lib/settings";
 
@@ -48,6 +48,57 @@ export async function createUserAction(formData: FormData) {
 
   revalidatePath("/configuracoes");
   redirect("/configuracoes");
+}
+
+export async function updateProfileAction(_: unknown, formData: FormData) {
+  const actor = await requireUser();
+
+  const parsed = z.object({
+    name: z.string().min(2, "Informe seu nome completo."),
+    email: z.string().email("Informe um e-mail válido."),
+    currentPassword: z.string().min(1, "Informe a senha atual."),
+    newPassword: z.string().optional().or(z.literal("")),
+    confirmPassword: z.string().optional().or(z.literal(""))
+  }).safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0].message };
+  }
+
+  const { name, email, currentPassword, newPassword, confirmPassword } = parsed.data;
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: actor.id } });
+  const passwordOk = await verifyPassword(currentPassword, user.passwordHash);
+  if (!passwordOk) {
+    return { error: "Senha atual incorreta." };
+  }
+
+  if (email !== user.email) {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing && existing.id !== actor.id) {
+      return { error: "Este e-mail já está em uso por outro usuário." };
+    }
+  }
+
+  const updateData: Record<string, unknown> = { name: name.trim(), email: email.trim().toLowerCase() };
+
+  if (newPassword) {
+    if (newPassword.length < 8) {
+      return { error: "A nova senha precisa ter no mínimo 8 caracteres." };
+    }
+    if (newPassword !== confirmPassword) {
+      return { error: "As novas senhas não coincidem." };
+    }
+    updateData.passwordHash = await hashPassword(newPassword);
+  }
+
+  await prisma.user.update({ where: { id: actor.id }, data: updateData });
+
+  // Refresh session token with updated name/email
+  await createSession({ id: actor.id, name: name.trim(), email: email.trim().toLowerCase(), role: actor.role });
+
+  revalidatePath("/configuracoes");
+  return { success: true };
 }
 
 export async function toggleUserActiveAction(formData: FormData) {
