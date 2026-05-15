@@ -30,14 +30,14 @@ export default async function SalesPage() {
   ]);
 
   return (
-    <AnimatedShell className="grid gap-6">
+    <AnimatedShell className="flex min-h-0 flex-col gap-4">
       <PageHeader
         title="Vendas"
         description="Registre a venda uma vez: o sistema baixa o estoque automaticamente e cria a receita no financeiro."
         action={<a href="/api/export/orders" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>}
       />
-      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <div className="xl:sticky xl:top-4">
+      <section className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <div className="overflow-y-auto rounded-2xl">
           <OrderForm
             customers={customers.map((c) => ({ id: c.id, name: c.name }))}
             variants={variants.map((v) => ({
@@ -51,8 +51,8 @@ export default async function SalesPage() {
           />
         </div>
 
-        <div className="grid gap-2">
-          <div className="table-shell max-h-[32rem] xl:max-h-[calc(100vh-12rem)]">
+        <div className="min-h-0">
+          <div className="table-shell h-full">
             <table className="data-table">
               <thead>
                 <tr>

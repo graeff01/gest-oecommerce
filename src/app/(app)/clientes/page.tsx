@@ -66,11 +66,11 @@ export default async function CustomersPage() {
   });
 
   return (
-    <AnimatedShell className="grid gap-6">
+    <AnimatedShell className="flex min-h-0 flex-col gap-4">
       <PageHeader title="Clientes" description="Centralize contato, endereço, observações e histórico de compras." action={<a href="/api/export/customers" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>} />
 
-      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <form action={createCustomerAction} className="surface-card grid gap-4 p-5 xl:sticky xl:top-4">
+      <section className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <form action={createCustomerAction} className="surface-card grid gap-4 overflow-y-auto p-5">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-success to-success/70 text-primary-fg">
               <UsersRound size={17} strokeWidth={2.1} />
@@ -91,7 +91,7 @@ export default async function CustomersPage() {
           <button className="button-primary">Cadastrar cliente</button>
         </form>
 
-        <div className="table-shell max-h-[32rem] xl:max-h-[calc(100vh-12rem)]">
+        <div className="table-shell min-h-0 h-full">
           <table className="data-table">
             <thead>
               <tr>
