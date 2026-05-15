@@ -1,12 +1,14 @@
 import { CircleDollarSign, Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
+import { FinanceCategorySelect } from "@/components/finance-category-select";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
+import { getStoreSettings, DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
 import { createFinancialTransactionAction, deleteFinancialTransactionAction } from "../actions/finance";
 
 const PAGE_SIZE = 30;
@@ -22,6 +24,11 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       ...(to ? { lte: new Date(to + "T23:59:59.999Z") } : {})
     }
   } : {};
+
+  const storeSettings = await getStoreSettings();
+  const financeCategories = storeSettings.financeCategories.length
+    ? storeSettings.financeCategories
+    : DEFAULT_FINANCE_CATEGORIES;
 
   const [totals, transactions, total] = await Promise.all([
     prisma.financialTransaction.groupBy({
@@ -98,7 +105,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             Título<input className="field" name="title" required />
           </label>
           <label className="label">
-            Categoria<input className="field" name="category" placeholder="Vendas, Marketing, Aluguel" required />
+            Categoria
+            <FinanceCategorySelect categories={financeCategories} name="category" required />
           </label>
           <label className="label">
             Valor<input className="field" name="amount" type="number" min="0" step="0.01" required />

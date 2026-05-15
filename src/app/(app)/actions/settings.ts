@@ -50,6 +50,24 @@ export async function createUserAction(formData: FormData) {
   redirect("/configuracoes");
 }
 
+export async function saveFinanceCategoriesAction(formData: FormData) {
+  await requireRole(["ADMIN"]);
+  const raw = formData.get("categories");
+  const categories = z.string().parse(raw)
+    .split("\n")
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+
+  await prisma.storeSettings.upsert({
+    where: { id: 1 },
+    update: { financeCategories: categories },
+    create: { id: 1, storeName: "Minha Loja", cashBalance: 0, financeCategories: categories }
+  });
+
+  revalidatePath("/configuracoes");
+  revalidatePath("/financeiro");
+}
+
 export async function updateProfileAction(_: unknown, formData: FormData) {
   const actor = await requireUser();
 

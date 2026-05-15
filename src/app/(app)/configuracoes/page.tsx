@@ -1,4 +1,4 @@
-import { AlertTriangle, DatabaseBackup, Download, ShieldCheck, Store, UserCircle, UsersRound } from "lucide-react";
+import { AlertTriangle, DatabaseBackup, Download, ListChecks, ShieldCheck, Store, UserCircle, UsersRound } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -8,7 +8,8 @@ import { StoreSettingsForm } from "@/components/store-settings-form";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
-import { createUserAction, toggleUserActiveAction } from "../actions/settings";
+import { createUserAction, saveFinanceCategoriesAction, toggleUserActiveAction } from "../actions/settings";
+import { DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
 
 export default async function SettingsPage() {
   await connection();
@@ -76,6 +77,49 @@ export default async function SettingsPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            )
+          },
+          {
+            id: "categories",
+            label: "Categorias",
+            icon: <ListChecks size={16} strokeWidth={2.1} />,
+            content: (
+              <div className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
+                <form action={saveFinanceCategoriesAction} className="surface-card grid gap-4 p-5">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-accent to-accent/70 text-fg">
+                      <ListChecks size={17} strokeWidth={2.1} />
+                    </span>
+                    <div>
+                      <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Categorias financeiras</h2>
+                      <p className="text-[0.76rem] font-normal text-muted">Uma categoria por linha. Usadas no lançamento de receitas e gastos.</p>
+                    </div>
+                  </div>
+                  <label className="label">
+                    Categorias (uma por linha)
+                    <textarea
+                      className="field min-h-48 font-mono text-sm"
+                      name="categories"
+                      defaultValue={
+                        (settings.financeCategories.length ? settings.financeCategories : DEFAULT_FINANCE_CATEGORIES).join("\n")
+                      }
+                    />
+                  </label>
+                  <button className="button-primary">Salvar categorias</button>
+                </form>
+                <div className="surface-card grid content-start gap-4 p-5">
+                  <p className="text-[0.74rem] font-semibold uppercase tracking-wide text-muted">Categorias padrão</p>
+                  <div className="flex flex-wrap gap-2">
+                    {DEFAULT_FINANCE_CATEGORIES.map((c) => (
+                      <span key={c} className="chip">{c}</span>
+                    ))}
+                  </div>
+                  <p className="text-[0.78rem] leading-5 text-muted">
+                    As categorias padrão já estão pré-carregadas. Você pode editá-las, remover ou adicionar novas conforme sua necessidade.
+                    Categorias consistentes permitem filtros e relatórios mais precisos.
+                  </p>
                 </div>
               </div>
             )

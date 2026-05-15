@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react";
 import { initials } from "@/lib/format";
 import type { SessionUser } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { GlobalSearch } from "@/components/global-search";
 import { logoutAction } from "@/app/(auth)/login/actions";
 
 function roleLabel(role: string) {
@@ -27,13 +28,16 @@ function todayLabel() {
 export function Topbar({ user }: { user: SessionUser }) {
   return (
     <header className="sticky top-3 z-10 flex items-center justify-between gap-2 rounded-2xl border border-border bg-surface/80 p-2 pl-4 shadow-soft backdrop-blur-xl">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <span className="hidden h-2 w-2 shrink-0 animate-pulse-soft rounded-full bg-success md:inline-block" />
-        <p className="min-w-0 truncate text-[0.82rem] font-medium text-muted">
+        <p className="hidden min-w-0 truncate text-[0.82rem] font-medium text-muted lg:block">
           <span className="text-fg">{todayLabel()}</span>
           <span className="mx-2 hidden text-subtle md:inline">·</span>
           <span className="hidden md:inline">Operação ativa</span>
         </p>
+        <div className="flex-1 lg:flex-none">
+          <GlobalSearch />
+        </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">

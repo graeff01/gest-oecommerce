@@ -200,6 +200,34 @@ export async function cancelOrderAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateOrderAction(_: unknown, formData: FormData) {
+  await requireRole(["ADMIN", "SALES"]);
+  const parsed = z.object({
+    id: z.string().min(1),
+    channel: z.string().min(1),
+    discount: z.coerce.number().min(0).default(0),
+    fee: z.coerce.number().min(0).default(0),
+    notes: z.string().optional()
+  }).safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) return { error: parsed.error.errors[0].message };
+
+  const { id, channel, discount, fee, notes } = parsed.data;
+
+  const order = await prisma.order.findUnique({ where: { id }, select: { subtotal: true, status: true } });
+  if (!order) return { error: "Pedido não encontrado." };
+  if (order.status === "CANCELED") return { error: "Não é possível editar um pedido cancelado." };
+
+  const total = Math.max(0, Number(order.subtotal) - discount + fee);
+
+  await prisma.order.update({ where: { id }, data: { channel, discount, fee, total, notes: notes || null } });
+
+  revalidatePath("/vendas");
+  revalidatePath("/clientes");
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function updateOrderStatusAction(formData: FormData) {
   await requireRole(["ADMIN", "SALES"]);
   const { id, status } = z.object({
@@ -255,6 +283,57 @@ export async function payInstallmentAction(formData: FormData) {
     await tx.auditLog.create({
       data: { userId: user.id, action: "PAY_INSTALLMENT", entity: "Installment", entityId: installment.id }
     });
+  });
+
+  revalidatePath("/clientes");
+  revalidatePath("/vendas");
+  revalidatePath("/financeiro");
+  revalidatePath("/");
+}
+
+export async function payManyInstallmentsAction(formData: FormData) {
+  const user = await requireRole(["ADMIN", "SALES", "FINANCE"]);
+  const raw = Object.fromEntries(formData);
+
+  const idsRaw = z.string().min(1).parse(raw.installmentIds);
+  const ids = z.array(z.string().min(1)).min(1).parse(JSON.parse(idsRaw));
+  const method = z.enum(["PIX", "CREDIT_CARD", "DEBIT_CARD", "CASH", "BANK_SLIP", "MARKETPLACE"])
+    .default("PIX")
+    .parse(raw.paymentMethod ?? "PIX");
+
+  await prisma.$transaction(async (tx) => {
+    const installments = await tx.installment.findMany({
+      where: { id: { in: ids }, paidAt: null },
+      include: { order: { include: { installments: true } } }
+    });
+
+    if (installments.length === 0) throw new Error("Nenhuma parcela em aberto encontrada.");
+
+    const now = new Date();
+
+    for (const inst of installments) {
+      await tx.installment.update({ where: { id: inst.id }, data: { paidAt: now, paymentMethod: method } });
+
+      await tx.financialTransaction.create({
+        data: {
+          type: "REVENUE",
+          title: `Parcela ${inst.sequence}/${inst.totalCount} - ${inst.order.code}`,
+          category: "Crediário",
+          amount: inst.amount,
+          paymentMethod: method,
+          paidAt: now
+        }
+      });
+
+      const remaining = inst.order.installments.filter((i) => i.id !== inst.id && !i.paidAt && !ids.includes(i.id)).length;
+      if (remaining === 0) {
+        await tx.order.update({ where: { id: inst.orderId }, data: { status: "PAID" } });
+      }
+
+      await tx.auditLog.create({
+        data: { userId: user.id, action: "PAY_INSTALLMENT", entity: "Installment", entityId: inst.id }
+      });
+    }
   });
 
   revalidatePath("/clientes");

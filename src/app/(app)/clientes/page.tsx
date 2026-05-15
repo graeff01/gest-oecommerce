@@ -1,11 +1,11 @@
 import { CalendarDays, Download, Pencil, UsersRound, Wallet, X } from "lucide-react";
+import { InstallmentsTable } from "@/components/installments-table";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
 import { date, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { createCustomerAction, updateCustomerAction, deleteCustomerAction } from "../actions/customers";
-import { payInstallmentAction } from "../actions/orders";
 
 export default async function CustomersPage() {
   await connection();
@@ -175,54 +175,16 @@ export default async function CustomersPage() {
           </span>
           <div>
             <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Crediário em aberto</h2>
-            <p className="text-[0.76rem] font-normal text-muted">Parcelas vendidas direto para clientes.</p>
+            <p className="text-[0.76rem] font-normal text-muted">Selecione várias parcelas para marcar como pagas de uma vez.</p>
           </div>
         </div>
-        <div className="table-shell overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Pedido</th>
-                <th>Parcela</th>
-                <th>Vencimento</th>
-                <th className="text-right">Valor</th>
-                <th className="text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {openInstallments.length ? openInstallments.map((i) => {
-                const due = new Date(i.dueDate);
-                due.setHours(0, 0, 0, 0);
-                const overdue = due < today;
-                return (
-                  <tr key={i.id}>
-                    <td className="max-w-[14rem] truncate font-semibold text-fg">{i.customerName}</td>
-                    <td className="text-muted">{i.orderCode}</td>
-                    <td><span className="chip">{i.sequence}/{i.totalCount}</span></td>
-                    <td><span className={overdue ? "status-pill pill-danger" : "text-muted"}>{date(i.dueDate)}</span></td>
-                    <td className="whitespace-nowrap text-right font-semibold text-fg">{money(i.amount)}</td>
-                    <td className="whitespace-nowrap text-right">
-                      <form action={payInstallmentAction} className="flex items-center justify-end gap-2">
-                        <input type="hidden" name="installmentId" value={i.id} />
-                        <select className="field h-8 py-1 text-xs" name="paymentMethod" defaultValue="PIX">
-                          <option value="PIX">Pix</option>
-                          <option value="CASH">Dinheiro</option>
-                          <option value="DEBIT_CARD">Débito</option>
-                          <option value="CREDIT_CARD">Crédito</option>
-                          <option value="BANK_SLIP">Boleto</option>
-                        </select>
-                        <button className="button-primary h-8 px-3 py-1 text-xs">Marcar paga</button>
-                      </form>
-                    </td>
-                  </tr>
-                );
-              }) : (
-                <tr><td colSpan={6} className="py-10 text-center text-muted">Nenhuma parcela em aberto.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <InstallmentsTable
+          installments={openInstallments.map((i) => ({
+            ...i,
+            amount: Number(i.amount),
+            dueDate: i.dueDate instanceof Date ? i.dueDate.toISOString() : String(i.dueDate)
+          }))}
+        />
       </section>
       {/* agenda de recebimentos */}
       {scheduleEntries.length > 0 && (

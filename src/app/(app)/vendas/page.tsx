@@ -1,6 +1,8 @@
 import { Download } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
+import { OrderDetailModal } from "@/components/order-detail-modal";
+import { OrderEditModal } from "@/components/order-edit-modal";
 import { OrderForm } from "@/components/order-form";
 import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
@@ -19,7 +21,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const [total, orders, customers, variants] = await Promise.all([
     prisma.order.count(),
     prisma.order.findMany({
-      include: { customer: true, items: { include: { variant: { include: { product: true } } } } },
+      include: {
+        customer: true,
+        items: { include: { variant: { include: { product: true } } } },
+        installments: { orderBy: { sequence: "asc" } }
+      },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE
@@ -82,25 +88,54 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                       <td className="whitespace-nowrap text-right font-semibold text-fg">{money(order.total)}</td>
                       <td className="whitespace-nowrap text-muted">{date(order.createdAt)}</td>
                       <td className="whitespace-nowrap">
-                        {order.status !== "CANCELED" && order.status !== "DELIVERED" ? (
-                          <div className="flex items-center gap-1.5">
-                            <form action={updateOrderStatusAction} className="flex items-center gap-1">
-                              <input type="hidden" name="id" value={order.id} />
-                              <select name="status" defaultValue={order.status} className="field h-7 py-0 text-xs">
-                                <option value="NEW">Novo</option>
-                                <option value="PAID">Pago</option>
-                                <option value="PICKING">Separando</option>
-                                <option value="SHIPPED">Enviado</option>
-                                <option value="DELIVERED">Entregue</option>
-                              </select>
-                              <button type="submit" className="h-7 rounded-lg bg-primary-soft px-2 text-xs font-semibold text-primary hover:bg-primary/20">OK</button>
-                            </form>
-                            <form action={cancelOrderAction}>
-                              <input type="hidden" name="id" value={order.id} />
-                              <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">✕</button>
-                            </form>
-                          </div>
-                        ) : null}
+                        <div className="flex items-center gap-1">
+                          <OrderDetailModal order={{
+                            ...order,
+                            subtotal: Number(order.subtotal),
+                            discount: Number(order.discount),
+                            fee: Number(order.fee),
+                            total: Number(order.total),
+                            items: order.items.map(i => ({
+                              ...i,
+                              unitPrice: Number(i.unitPrice),
+                              costPrice: Number(i.costPrice)
+                            })),
+                            installments: order.installments.map(i => ({
+                              ...i,
+                              amount: Number(i.amount)
+                            }))
+                          }} />
+                          <OrderEditModal order={{
+                            id: order.id,
+                            channel: order.channel,
+                            discount: Number(order.discount),
+                            fee: Number(order.fee),
+                            notes: order.notes,
+                            status: order.status,
+                            paymentMethod: order.paymentMethod,
+                            total: Number(order.total),
+                            subtotal: Number(order.subtotal)
+                          }} />
+                          {order.status !== "CANCELED" && order.status !== "DELIVERED" ? (
+                            <div className="flex items-center gap-1">
+                              <form action={updateOrderStatusAction} className="flex items-center gap-1">
+                                <input type="hidden" name="id" value={order.id} />
+                                <select name="status" defaultValue={order.status} className="field h-7 py-0 text-xs">
+                                  <option value="NEW">Novo</option>
+                                  <option value="PAID">Pago</option>
+                                  <option value="PICKING">Separando</option>
+                                  <option value="SHIPPED">Enviado</option>
+                                  <option value="DELIVERED">Entregue</option>
+                                </select>
+                                <button type="submit" className="h-7 rounded-lg bg-primary-soft px-2 text-xs font-semibold text-primary hover:bg-primary/20">OK</button>
+                              </form>
+                              <form action={cancelOrderAction}>
+                                <input type="hidden" name="id" value={order.id} />
+                                <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">✕</button>
+                              </form>
+                            </div>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))

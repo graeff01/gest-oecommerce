@@ -233,11 +233,12 @@ model AuditLog {
 }
 
 model StoreSettings {
-  id             Int      @id @default(1)
-  storeName      String   @default("LA WEAR")
-  storeTagline   String?
-  loginImageUrl  String?
-  primaryColor   String?
-  cashBalance    Decimal  @default(0) @db.Decimal(12, 2)
-  updatedAt      DateTime @updatedAt
+  id                 Int      @id @default(1)
+  storeName          String   @default("LA WEAR")
+  storeTagline       String?
+  loginImageUrl      String?
+  primaryColor       String?
+  cashBalance        Decimal  @default(0) @db.Decimal(12, 2)
+  financeCategories  String[] @default([])
+  updatedAt          DateTime @updatedAt
 }

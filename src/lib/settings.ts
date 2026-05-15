@@ -7,14 +7,28 @@ export type StoreSettingsData = {
   storeTagline: string | null;
   loginImageUrl: string | null;
   cashBalance: number;
+  financeCategories: string[];
 };
 
 const FALLBACK: StoreSettingsData = {
   storeName: "Minha Loja",
   storeTagline: null,
   loginImageUrl: null,
-  cashBalance: 0
+  cashBalance: 0,
+  financeCategories: []
 };
+
+export const DEFAULT_FINANCE_CATEGORIES = [
+  "Vendas",
+  "Crediário",
+  "Mercadorias",
+  "Marketing",
+  "Aluguel",
+  "Salários",
+  "Transporte",
+  "Embalagens",
+  "Outros"
+];
 
 export async function getStoreSettings(): Promise<StoreSettingsData> {
   try {
@@ -28,7 +42,8 @@ export async function getStoreSettings(): Promise<StoreSettingsData> {
       storeName: settings.storeName,
       storeTagline: settings.storeTagline,
       loginImageUrl: settings.loginImageUrl,
-      cashBalance: Number(settings.cashBalance)
+      cashBalance: Number(settings.cashBalance),
+      financeCategories: settings.financeCategories ?? []
     };
   } catch {
     return FALLBACK;
