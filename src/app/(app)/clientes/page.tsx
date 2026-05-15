@@ -35,10 +35,6 @@ export default async function CustomersPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Agenda: próximos 30 dias, agrupado por data
-  const in30Days = new Date(today);
-  in30Days.setDate(in30Days.getDate() + 30);
-
   const scheduleMap = new Map<string, { total: number; count: number; overdue: boolean }>();
   for (const inst of openInstallments) {
     const due = new Date(inst.dueDate);
@@ -53,7 +49,7 @@ export default async function CustomersPage() {
       scheduleMap.set(key, { total: Number(inst.amount), count: 1, overdue });
     }
   }
-  // Sort: overdue first (desc), then upcoming (asc)
+
   const scheduleEntries = Array.from(scheduleMap.entries()).sort(([a], [b]) => {
     const da = new Date(a).getTime();
     const db = new Date(b).getTime();
@@ -62,13 +58,79 @@ export default async function CustomersPage() {
     const bOver = db < todayTs;
     if (aOver && !bOver) return -1;
     if (!aOver && bOver) return 1;
-    return aOver ? db - da : da - db; // overdue: mais antigo primeiro; futuro: mais próximo primeiro
+    return aOver ? db - da : da - db;
   });
+
+  const scheduleTotal = scheduleEntries.reduce((s, [, { total }]) => s + total, 0);
+  const overdueTotal = scheduleEntries
+    .filter(([, { overdue }]) => overdue)
+    .reduce((s, [, { total }]) => s + total, 0);
 
   return (
     <AnimatedShell className="grid gap-6">
-      <PageHeader title="Clientes" description="Centralize contato, endereço, observações e histórico de compras." action={<a href="/api/export/customers" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>} />
+      <PageHeader
+        title="Clientes"
+        description="Centralize contato, endereço, observações e histórico de compras."
+        action={<a href="/api/export/customers" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>}
+      />
 
+      {/* agenda de recebimentos — no topo, só aparece se tiver dados */}
+      {scheduleEntries.length > 0 && (
+        <section className="surface-card grid gap-4 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
+                <CalendarDays size={17} strokeWidth={2.1} />
+              </span>
+              <div>
+                <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Agenda de recebimentos</h2>
+                <p className="text-[0.76rem] font-normal text-muted">Previsão por dia com base nas parcelas em aberto.</p>
+              </div>
+            </div>
+            {/* totais resumo */}
+            <div className="flex flex-wrap gap-3">
+              <div className="rounded-xl border border-border bg-surface-2/40 px-4 py-2.5">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted">Total a receber</p>
+                <p className="mt-0.5 font-display text-lg font-bold text-fg">{money(scheduleTotal)}</p>
+              </div>
+              {overdueTotal > 0 && (
+                <div className="rounded-xl border border-danger/25 bg-danger-soft px-4 py-2.5">
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-danger">Em atraso</p>
+                  <p className="mt-0.5 font-display text-lg font-bold text-danger">{money(overdueTotal)}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {scheduleEntries.map(([dateKey, { total, count, overdue }]) => {
+              const d = new Date(dateKey + "T12:00:00");
+              const isToday = dateKey === today.toISOString().slice(0, 10);
+              return (
+                <div
+                  key={dateKey}
+                  className={`flex min-w-[8rem] flex-1 flex-col gap-1 rounded-xl border px-4 py-3 ${
+                    overdue
+                      ? "border-danger/25 bg-danger-soft"
+                      : isToday
+                        ? "border-success/30 bg-success-soft"
+                        : "border-border bg-surface-2/40"
+                  }`}
+                >
+                  <span className={`text-[0.7rem] font-semibold uppercase tracking-wide ${overdue ? "text-danger" : isToday ? "text-success" : "text-muted"}`}>
+                    {overdue ? "Vencido · " : isToday ? "Hoje · " : ""}
+                    {d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
+                  </span>
+                  <span className="font-display text-base font-semibold text-fg">{money(total)}</span>
+                  <span className="text-[0.72rem] text-muted">{count} {count === 1 ? "parcela" : "parcelas"}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* cadastro + lista de clientes — mesma altura, form sticky */}
       <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
         <form action={createCustomerAction} className="surface-card grid gap-4 p-5 xl:sticky xl:top-4">
           <div className="flex items-center gap-3">
@@ -117,7 +179,6 @@ export default async function CustomersPage() {
                   </td>
                   <td>
                     <div className="flex items-center justify-end gap-2">
-                      {/* edit dialog trigger */}
                       <button
                         type="button"
                         className="text-[0.74rem] text-muted transition hover:text-primary"
@@ -134,7 +195,6 @@ export default async function CustomersPage() {
                         </button>
                       </form>
                     </div>
-                    {/* edit popover */}
                     <div
                       id={`edit-customer-${c.id}`}
                       popover="auto"
@@ -168,7 +228,7 @@ export default async function CustomersPage() {
         </div>
       </section>
 
-      {/* crediário */}
+      {/* crediário em aberto */}
       <section className="surface-card grid gap-4 p-5">
         <div className="flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-warning to-warning/70 text-primary-fg">
@@ -188,46 +248,6 @@ export default async function CustomersPage() {
           }))}
         />
       </section>
-      {/* agenda de recebimentos */}
-      {scheduleEntries.length > 0 && (
-        <section className="surface-card grid gap-4 p-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
-              <CalendarDays size={17} strokeWidth={2.1} />
-            </span>
-            <div>
-              <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Agenda de recebimentos</h2>
-              <p className="text-[0.76rem] font-normal text-muted">Previsão por dia com base nas parcelas em aberto.</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {scheduleEntries.map(([dateKey, { total, count, overdue }]) => {
-              const d = new Date(dateKey + "T12:00:00");
-              const isToday = dateKey === today.toISOString().slice(0, 10);
-              return (
-                <div
-                  key={dateKey}
-                  className={`flex min-w-[9rem] flex-1 flex-col gap-1 rounded-xl border px-4 py-3 ${
-                    overdue
-                      ? "border-danger/25 bg-danger-soft"
-                      : isToday
-                        ? "border-success/30 bg-success-soft"
-                        : "border-border bg-surface-2/40"
-                  }`}
-                >
-                  <span className={`text-[0.72rem] font-semibold uppercase tracking-wide ${overdue ? "text-danger" : isToday ? "text-success" : "text-muted"}`}>
-                    {overdue ? "Vencido · " : isToday ? "Hoje · " : ""}
-                    {d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
-                  </span>
-                  <span className="font-display text-lg font-semibold text-fg">{money(total)}</span>
-                  <span className="text-[0.74rem] text-muted">{count} {count === 1 ? "parcela" : "parcelas"}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </AnimatedShell>
   );
 }
