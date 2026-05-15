@@ -571,3 +571,39 @@ h1, h2, h3, h4, h5 {
   color: rgb(var(--muted));
   font-family: var(--font-sans);
 }
+
+/* ── react-grid-layout resize handles ───────────────────── */
+.react-resizable-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgb(var(--primary));
+  border-bottom: 2px solid rgb(var(--primary));
+  border-radius: 1px;
+}
+.react-resizable-handle-se { bottom: 0; right: 0; cursor: se-resize; }
+.react-resizable-handle-sw { bottom: 0; left: 0; cursor: sw-resize; transform: rotate(90deg); }
+.react-resizable-handle-ne { top: 0; right: 0; cursor: ne-resize; transform: rotate(-90deg); }
+.react-resizable-handle-nw { top: 0; left: 0; cursor: nw-resize; transform: rotate(180deg); }
+.react-resizable-handle-e  { top: 50%; right: 0; cursor: e-resize; transform: translateY(-50%) rotate(-45deg); }
+.react-resizable-handle-w  { top: 50%; left: 0; cursor: w-resize; transform: translateY(-50%) rotate(135deg); }
+.react-resizable-handle-s  { bottom: 0; left: 50%; cursor: s-resize; transform: translateX(-50%); }
+.react-resizable-handle-n  { top: 0; left: 50%; cursor: n-resize; transform: translateX(-50%) rotate(180deg); }
+
+/* Show handles only when editing (drag-handle class is present on parent) */
+.drag-handle ~ * .react-resizable-handle,
+.react-grid-item.react-resizable .react-resizable-handle {
+  opacity: 1;
+}
+

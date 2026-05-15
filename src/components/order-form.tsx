@@ -104,8 +104,11 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
     );
   }
 
-  const [discount, setDiscount] = useState(0);
-  const [fee, setFee] = useState(0);
+  const [discount, setDiscount] = useState("");
+  const [fee, setFee] = useState("");
+
+  const discountNum = Math.max(0, Number(discount) || 0);
+  const feeNum = Math.max(0, Number(fee) || 0);
 
   const cartTotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
@@ -113,8 +116,8 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
   );
 
   const orderTotal = useMemo(
-    () => Math.max(0, cartTotal - discount + fee),
-    [cartTotal, discount, fee]
+    () => Math.max(0, cartTotal - discountNum + feeNum),
+    [cartTotal, discountNum, feeNum]
   );
 
   // submete: injeta cart como JSON num input hidden, instalment dates como JSON
@@ -280,10 +283,10 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
             name="discount"
             type="number"
             min="0"
-            max={cartTotal}
             step="0.01"
+            placeholder="0,00"
             value={discount}
-            onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
+            onChange={(e) => setDiscount(e.target.value)}
           />
         </label>
         <label className="label">
@@ -294,27 +297,28 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
             type="number"
             min="0"
             step="0.01"
+            placeholder="0,00"
             value={fee}
-            onChange={(e) => setFee(Math.max(0, Number(e.target.value)))}
+            onChange={(e) => setFee(e.target.value)}
           />
         </label>
       </div>
 
       {/* resumo do total quando há desconto ou taxa */}
-      {(discount > 0 || fee > 0) && cart.length > 0 && (
+      {(discountNum > 0 || feeNum > 0) && cart.length > 0 && (
         <div className="flex items-center justify-end gap-3 rounded-xl border border-border bg-surface-2/40 px-4 py-2.5 text-[0.83rem]">
           <span className="text-muted">Subtotal</span>
           <span className="font-medium text-fg">{money(cartTotal)}</span>
-          {discount > 0 && (
+          {discountNum > 0 && (
             <>
               <span className="text-muted">- Desconto</span>
-              <span className="font-medium text-success">− {money(discount)}</span>
+              <span className="font-medium text-success">− {money(discountNum)}</span>
             </>
           )}
-          {fee > 0 && (
+          {feeNum > 0 && (
             <>
               <span className="text-muted">+ Taxa</span>
-              <span className="font-medium text-warning">+ {money(fee)}</span>
+              <span className="font-medium text-warning">+ {money(feeNum)}</span>
             </>
           )}
           <span className="text-muted">= Total</span>

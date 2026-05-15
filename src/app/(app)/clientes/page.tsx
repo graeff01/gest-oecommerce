@@ -69,8 +69,8 @@ export default async function CustomersPage() {
     <AnimatedShell className="grid gap-6">
       <PageHeader title="Clientes" description="Centralize contato, endereço, observações e histórico de compras." action={<a href="/api/export/customers" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>} />
 
-      <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <form action={createCustomerAction} className="surface-card grid gap-4 p-5">
+      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <form action={createCustomerAction} className="surface-card grid gap-4 p-5 xl:sticky xl:top-4">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-success to-success/70 text-primary-fg">
               <UsersRound size={17} strokeWidth={2.1} />
@@ -91,7 +91,7 @@ export default async function CustomersPage() {
           <button className="button-primary">Cadastrar cliente</button>
         </form>
 
-        <div className="table-shell overflow-x-auto">
+        <div className="table-shell max-h-[32rem] overflow-auto xl:max-h-[calc(100vh-12rem)]">
           <table className="data-table">
             <thead>
               <tr>
@@ -138,7 +138,8 @@ export default async function CustomersPage() {
                     <div
                       id={`edit-customer-${c.id}`}
                       popover="auto"
-                      className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-xl backdrop:bg-fg/20"
+                      className="w-full max-w-sm overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-xl backdrop:bg-fg/20"
+                      style={{ maxHeight: "min(90dvh, 560px)" }}
                     >
                       <form action={updateCustomerAction} className="grid gap-3">
                         <input type="hidden" name="id" value={c.id} />
