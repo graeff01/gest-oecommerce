@@ -9,6 +9,7 @@ import {
   Building2,
   ChevronLeft,
   CircleDollarSign,
+  CreditCard,
   LayoutDashboard,
   PackagePlus,
   ReceiptText,
@@ -27,6 +28,7 @@ const nav = [
   { href: "/vendas", label: "Vendas", icon: ReceiptText },
   { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
   { href: "/clientes", label: "Clientes", icon: UsersRound },
+  { href: "/credario", label: "Crediário", icon: CreditCard },
   { href: "/fornecedores", label: "Fornecedores", icon: Building2 },
   { href: "/compras", label: "Compras", icon: PackagePlus },
   { href: "/movimentacoes", label: "Movimentações", icon: TrendingUp },
@@ -156,7 +158,7 @@ export function AppSidebar({
                   className={active ? "text-primary" : "text-muted group-hover:text-fg"}
                 />
                 {/* badge no ícone quando collapsed */}
-                {item.href === "/clientes" && collapsed && (
+                {item.href === "/credario" && collapsed && (
                   <span className="absolute -right-1 -top-1">
                     <OverdueBadge iconOnly />
                   </span>
@@ -177,7 +179,7 @@ export function AppSidebar({
                 )}
               </AnimatePresence>
 
-              {item.href === "/clientes" && !collapsed && (
+              {item.href === "/credario" && !collapsed && (
                 <span className="relative z-10 hidden lg:inline">
                   <OverdueBadge />
                 </span>
