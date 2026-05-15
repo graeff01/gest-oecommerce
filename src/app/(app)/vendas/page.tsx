@@ -121,7 +121,8 @@ export default async function SalesPage() {
                               status: order.status,
                               paymentMethod: order.paymentMethod,
                               total: Number(order.total),
-                              subtotal: Number(order.subtotal)
+                              subtotal: Number(order.subtotal),
+                              createdAt: order.createdAt.toISOString()
                             }}
                             customers={customers.map((c) => ({ id: c.id, name: c.name }))}
                             customerId={order.customerId}

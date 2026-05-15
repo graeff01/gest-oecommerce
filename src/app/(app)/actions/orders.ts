@@ -282,12 +282,21 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
     customerId: z.string().optional(),
     discount: z.coerce.number().min(0).default(0),
     fee: z.coerce.number().min(0).default(0),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    createdAt: z.string().optional()
   }).safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) return { error: parsed.error.errors[0].message };
 
-  const { id, channel, status, paymentMethod, customerId, discount, fee, notes } = parsed.data;
+  const { id, channel, status, paymentMethod, customerId, discount, fee, notes, createdAt } = parsed.data;
+
+  // valida a data se informada
+  let parsedCreatedAt: Date | undefined;
+  if (createdAt) {
+    const d = new Date(createdAt);
+    if (isNaN(d.getTime())) return { error: "Data do pedido inválida." };
+    parsedCreatedAt = d;
+  }
 
   const order = await prisma.order.findUnique({
     where: { id },
@@ -309,6 +318,7 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
         fee,
         total: newTotal,
         notes: notes || null,
+        ...(parsedCreatedAt ? { createdAt: parsedCreatedAt } : {}),
         ...(status ? { status } : {}),
         ...(paymentMethod ? { paymentMethod } : {}),
         ...(customerId !== undefined ? { customerId: customerId || null } : {})
