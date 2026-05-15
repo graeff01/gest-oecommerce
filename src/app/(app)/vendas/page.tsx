@@ -1,14 +1,25 @@
-import { Download } from "lucide-react";
+import { Download, MessageCircle, Printer } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { OrderDetailModal } from "@/components/order-detail-modal";
 import { OrderEditModal } from "@/components/order-edit-modal";
 import { OrderForm } from "@/components/order-form";
+import { OrderReturnModal } from "@/components/order-return-modal";
 import { PageHeader } from "@/components/page-header";
 import { date, money } from "@/lib/format";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { cancelOrderAction, updateOrderStatusAction } from "../actions/orders";
+
+function buildOrderWhatsAppUrl(name: string, phone: string | null | undefined, code: string, status: string, total: number): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return null;
+  const normalized = digits.startsWith("55") ? digits : `55${digits}`;
+  const statusLabel = ORDER_STATUS_LABELS[status] ?? status;
+  const message = `Olá ${name}! Seu pedido ${code} está ${statusLabel}. Total: ${money(total)}. Qualquer dúvida é só chamar! 😊`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
 
 export default async function SalesPage() {
   await connection();
@@ -114,6 +125,60 @@ export default async function SalesPage() {
                             customers={customers.map((c) => ({ id: c.id, name: c.name }))}
                             customerId={order.customerId}
                           />
+                          {/* PDF Receipt */}
+                          <a
+                            href={`/api/orders/${order.id}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-primary-soft hover:text-primary"
+                            title="Imprimir recibo"
+                          >
+                            <Printer size={13} strokeWidth={2.1} />
+                          </a>
+                          {/* WhatsApp */}
+                          {order.customer?.phone && buildOrderWhatsAppUrl(
+                            order.customer.name,
+                            order.customer.phone,
+                            order.code,
+                            order.status,
+                            Number(order.total)
+                          ) ? (
+                            <a
+                              href={buildOrderWhatsAppUrl(
+                                order.customer.name,
+                                order.customer.phone,
+                                order.code,
+                                order.status,
+                                Number(order.total)
+                              )!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-success-soft hover:text-success"
+                              title="Enviar mensagem via WhatsApp"
+                            >
+                              <MessageCircle size={13} strokeWidth={2.1} />
+                            </a>
+                          ) : null}
+                          {/* Return modal — only for non-canceled orders */}
+                          {order.status !== "CANCELED" && (
+                            <OrderReturnModal
+                              orderId={order.id}
+                              orderCode={order.code}
+                              items={order.items.map((i) => ({
+                                id: i.id,
+                                quantity: i.quantity,
+                                unitPrice: Number(i.unitPrice),
+                                label: i.label,
+                                variant: i.variant
+                                  ? {
+                                      product: { name: i.variant.product.name },
+                                      color: i.variant.color,
+                                      size: i.variant.size
+                                    }
+                                  : null
+                              }))}
+                            />
+                          )}
                           {order.status !== "CANCELED" && order.status !== "DELIVERED" ? (
                             <div className="flex items-center gap-1">
                               <form action={updateOrderStatusAction} className="flex items-center gap-1">

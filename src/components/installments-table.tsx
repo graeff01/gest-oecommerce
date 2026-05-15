@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckSquare2, Square } from "lucide-react";
+import { CheckSquare2, MessageCircle, Square } from "lucide-react";
 import { payInstallmentAction, payManyInstallmentsAction } from "@/app/(app)/actions/orders";
 import { date, money } from "@/lib/format";
 
@@ -13,9 +13,20 @@ type Installment = {
   amount: number;
   orderCode: string;
   customerName: string;
+  customerPhone?: string | null;
 };
 
-export function InstallmentsTable({ installments }: { installments: Installment[] }) {
+function buildWhatsAppUrl(phone: string | null | undefined, installment: Installment): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return null;
+  const normalized = digits.startsWith("55") ? digits : `55${digits}`;
+  const dueDateStr = date(installment.dueDate);
+  const message = `Olá ${installment.customerName}, tudo bem? Passando para lembrar que a parcela ${installment.sequence}/${installment.totalCount} de ${money(installment.amount)} vence em ${dueDateStr}. Qualquer dúvida estou à disposição! 😊`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
+
+export function InstallmentsTable({ installments }: { installments: Installment[]; }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkMethod, setBulkMethod] = useState("PIX");
   const [isPending, startTransition] = useTransition();
@@ -136,17 +147,30 @@ export function InstallmentsTable({ installments }: { installments: Installment[
                   <td><span className={overdue ? "status-pill pill-danger" : "text-muted"}>{date(i.dueDate)}</span></td>
                   <td className="whitespace-nowrap text-right font-semibold text-fg">{money(i.amount)}</td>
                   <td className="whitespace-nowrap text-right">
-                    <form action={payInstallmentAction} className="flex items-center justify-end gap-2">
-                      <input type="hidden" name="installmentId" value={i.id} />
-                      <select className="field h-7 py-0 text-xs" name="paymentMethod" defaultValue="PIX">
-                        <option value="PIX">Pix</option>
-                        <option value="CASH">Dinheiro</option>
-                        <option value="DEBIT_CARD">Débito</option>
-                        <option value="CREDIT_CARD">Crédito</option>
-                        <option value="BANK_SLIP">Boleto</option>
-                      </select>
-                      <button className="button-primary h-7 px-2.5 py-0 text-xs">Pagar</button>
-                    </form>
+                    <div className="flex items-center justify-end gap-2">
+                      {buildWhatsAppUrl(i.customerPhone, i) ? (
+                        <a
+                          href={buildWhatsAppUrl(i.customerPhone, i)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-success-soft hover:text-success"
+                          title="Enviar lembrete via WhatsApp"
+                        >
+                          <MessageCircle size={13} strokeWidth={2.1} />
+                        </a>
+                      ) : null}
+                      <form action={payInstallmentAction} className="flex items-center gap-2">
+                        <input type="hidden" name="installmentId" value={i.id} />
+                        <select className="field h-7 py-0 text-xs" name="paymentMethod" defaultValue="PIX">
+                          <option value="PIX">Pix</option>
+                          <option value="CASH">Dinheiro</option>
+                          <option value="DEBIT_CARD">Débito</option>
+                          <option value="CREDIT_CARD">Crédito</option>
+                          <option value="BANK_SLIP">Boleto</option>
+                        </select>
+                        <button className="button-primary h-7 px-2.5 py-0 text-xs">Pagar</button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               );

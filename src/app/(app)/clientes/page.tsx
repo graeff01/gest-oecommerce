@@ -29,7 +29,7 @@ export default async function CustomersPage() {
   });
 
   const openInstallments = customerDebt
-    .flatMap((c) => c.openInstallments.map((i) => ({ ...i, customerName: c.name })))
+    .flatMap((c) => c.openInstallments.map((i) => ({ ...i, customerName: c.name, customerPhone: c.phone ?? null })))
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   const today = new Date();
@@ -183,7 +183,8 @@ export default async function CustomersPage() {
           installments={openInstallments.map((i) => ({
             ...i,
             amount: Number(i.amount),
-            dueDate: i.dueDate instanceof Date ? i.dueDate.toISOString() : String(i.dueDate)
+            dueDate: i.dueDate instanceof Date ? i.dueDate.toISOString() : String(i.dueDate),
+            customerPhone: i.customerPhone ?? null
           }))}
         />
       </section>

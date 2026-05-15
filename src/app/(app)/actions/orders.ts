@@ -331,6 +331,92 @@ export async function payInstallmentAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function returnOrderItemAction(
+  _prev: { success?: true; error?: string } | null,
+  formData: FormData
+): Promise<{ success?: true; error?: string }> {
+  let user: Awaited<ReturnType<typeof requireRole>>;
+  try {
+    user = await requireRole(["ADMIN", "SALES"]);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Acesso negado." };
+  }
+
+  const raw = Object.fromEntries(formData);
+  const parseResult = z.object({
+    orderId: z.string().min(1),
+    itemId: z.string().min(1),
+    quantity: z.coerce.number().int().min(1),
+    reason: z.string().min(1)
+  }).safeParse(raw);
+
+  if (!parseResult.success) {
+    return { error: parseResult.error.errors[0].message };
+  }
+
+  const parsed = parseResult.data;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const item = await tx.orderItem.findUniqueOrThrow({
+        where: { id: parsed.itemId },
+        include: { order: true }
+      });
+
+      if (item.orderId !== parsed.orderId) throw new Error("Item não pertence ao pedido informado.");
+      if (parsed.quantity > item.quantity) throw new Error(`Quantidade a devolver (${parsed.quantity}) não pode ser maior que a quantidade do item (${item.quantity}).`);
+
+      const refundAmount = Number(item.unitPrice) * parsed.quantity;
+
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stockQuantity: { increment: parsed.quantity } }
+        });
+        await tx.stockMovement.create({
+          data: {
+            variantId: item.variantId,
+            userId: user.id,
+            type: "RETURN",
+            quantity: parsed.quantity,
+            reason: `Devolução ${item.order.code}: ${parsed.reason}`
+          }
+        });
+      }
+
+      await tx.financialTransaction.create({
+        data: {
+          type: "EXPENSE",
+          title: `Devolução ${item.order.code}`,
+          category: "Devolução",
+          amount: refundAmount,
+          paidAt: new Date(),
+          notes: parsed.reason
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: user.id,
+          action: "RETURN_ORDER_ITEM",
+          entity: "OrderItem",
+          entityId: item.id,
+          metadata: { orderId: parsed.orderId, quantity: parsed.quantity, reason: parsed.reason }
+        }
+      });
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao processar devolução." };
+  }
+
+  revalidatePath("/vendas");
+  revalidatePath("/clientes");
+  revalidatePath("/produtos");
+  revalidatePath("/financeiro");
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function payManyInstallmentsAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "SALES", "FINANCE"]);
   const raw = Object.fromEntries(formData);

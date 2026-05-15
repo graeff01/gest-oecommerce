@@ -18,6 +18,7 @@ import {
   UsersRound
 } from "lucide-react";
 import { SidebarTips } from "@/components/sidebar-tips";
+import { OverdueBadge } from "@/components/overdue-badge";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -105,6 +106,11 @@ export function AppSidebar({
               <span className={`relative z-10 hidden lg:inline ${active ? "font-semibold text-fg" : ""}`}>
                 {item.label}
               </span>
+              {item.href === "/clientes" && (
+                <span className="relative z-10 hidden lg:inline">
+                  <OverdueBadge />
+                </span>
+              )}
             </Link>
           );
         })}
