@@ -14,9 +14,12 @@ export async function createOrderAction(formData: FormData) {
   const raw = Object.fromEntries(formData);
 
   // itens do carrinho: JSON enviado pelo form client-side
+  // variantId é null para itens avulsos (produto sem cadastro)
   const itemsRaw = z.string().min(1).parse(raw.items);
   const cartItems = z.array(z.object({
-    variantId: z.string().min(1),
+    variantId: z.string().nullable().optional(),
+    label: z.string().optional(),
+    unitPrice: z.coerce.number().min(0).optional(),
     quantity: z.coerce.number().int().min(1)
   })).min(1).parse(JSON.parse(itemsRaw));
 
@@ -41,21 +44,27 @@ export async function createOrderAction(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    // busca todas as variantes do carrinho de uma vez
-    const variantIds = cartItems.map((item) => item.variantId);
-    const variantsDb = await tx.productVariant.findMany({
-      where: { id: { in: variantIds } }
-    });
+    const catalogItems = cartItems.filter((i) => i.variantId);
+    const manualItems  = cartItems.filter((i) => !i.variantId);
 
+    // busca variantes cadastradas de uma vez
+    const variantIds = catalogItems.map((i) => i.variantId as string);
+    const variantsDb = variantIds.length
+      ? await tx.productVariant.findMany({ where: { id: { in: variantIds } } })
+      : [];
     const variantMap = new Map(variantsDb.map((v) => [v.id, v]));
 
     // valida estoque e calcula subtotal
     let subtotal = 0;
-    for (const item of cartItems) {
-      const v = variantMap.get(item.variantId);
+    for (const item of catalogItems) {
+      const v = variantMap.get(item.variantId as string);
       if (!v) throw new Error("Produto não encontrado.");
       if (v.stockQuantity < item.quantity) throw new Error(`Estoque insuficiente para ${v.sku}.`);
       subtotal += Number(v.salePrice) * item.quantity;
+    }
+    // itens avulsos: usa o preço informado no form
+    for (const item of manualItems) {
+      subtotal += (item.unitPrice ?? 0) * item.quantity;
     }
 
     const total = subtotal - parsed.discount + parsed.fee;
@@ -63,10 +72,10 @@ export async function createOrderAction(formData: FormData) {
 
     const code = `PED-${randomUUID().slice(0, 8).toUpperCase()}`;
 
-    // baixa atômica de estoque para cada item
-    for (const item of cartItems) {
+    // baixa atômica de estoque só para itens cadastrados
+    for (const item of catalogItems) {
       const stockUpdate = await tx.productVariant.updateMany({
-        where: { id: item.variantId, stockQuantity: { gte: item.quantity } },
+        where: { id: item.variantId as string, stockQuantity: { gte: item.quantity } },
         data: { stockQuantity: { decrement: item.quantity } }
       });
       if (stockUpdate.count !== 1) throw new Error(`Estoque insuficiente para uma das variações.`);
@@ -85,23 +94,32 @@ export async function createOrderAction(formData: FormData) {
         total,
         notes: parsed.notes,
         items: {
-          create: cartItems.map((item) => {
-            const v = variantMap.get(item.variantId)!;
-            return {
-              variantId: item.variantId,
+          create: [
+            ...catalogItems.map((item) => {
+              const v = variantMap.get(item.variantId as string)!;
+              return {
+                variantId: item.variantId as string,
+                quantity: item.quantity,
+                unitPrice: v.salePrice,
+                costPrice: v.costPrice
+              };
+            }),
+            ...manualItems.map((item) => ({
+              variantId: null,
+              label: item.label ?? "Item avulso",
               quantity: item.quantity,
-              unitPrice: v.salePrice,
-              costPrice: v.costPrice
-            };
-          })
+              unitPrice: item.unitPrice ?? 0,
+              costPrice: 0
+            }))
+          ]
         }
       }
     });
 
-    // movimentações de estoque
-    for (const item of cartItems) {
+    // movimentações de estoque apenas para itens cadastrados
+    for (const item of catalogItems) {
       await tx.stockMovement.create({
-        data: { variantId: item.variantId, userId: user.id, type: "SALE", quantity: item.quantity, reason: `Venda ${code}` }
+        data: { variantId: item.variantId as string, userId: user.id, type: "SALE", quantity: item.quantity, reason: `Venda ${code}` }
       });
     }
 
@@ -164,8 +182,9 @@ export async function cancelOrderAction(formData: FormData) {
 
     await tx.order.update({ where: { id }, data: { status: "CANCELED" } });
 
-    // Devolve estoque de cada item
+    // Devolve estoque apenas para itens com variante cadastrada
     for (const item of order.items) {
+      if (!item.variantId) continue; // item avulso: sem estoque para devolver
       await tx.productVariant.update({
         where: { id: item.variantId },
         data: { stockQuantity: { increment: item.quantity } }

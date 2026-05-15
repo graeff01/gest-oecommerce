@@ -49,14 +49,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const expenses = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + Number(t.amount), 0);
   const stockValue = variants.reduce((s, v) => s + Number(v.costPrice) * v.stockQuantity, 0);
 
-  // ranking de produtos
+  // ranking de produtos (itens avulsos agrupados pelo label)
   const productRanking = new Map<string, { name: string; quantity: number; total: number }>();
   for (const order of orders) {
     for (const item of order.items) {
-      const cur = productRanking.get(item.variant.product.id) ?? { name: item.variant.product.name, quantity: 0, total: 0 };
+      const key = item.variant ? item.variant.product.id : `manual:${item.label ?? "avulso"}`;
+      const name = item.variant ? item.variant.product.name : (item.label ?? "Item avulso");
+      const cur = productRanking.get(key) ?? { name, quantity: 0, total: 0 };
       cur.quantity += item.quantity;
       cur.total += Number(item.unitPrice) * item.quantity;
-      productRanking.set(item.variant.product.id, cur);
+      productRanking.set(key, cur);
     }
   }
   const ranking = [...productRanking.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 10);

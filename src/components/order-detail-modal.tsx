@@ -11,12 +11,13 @@ type OrderItem = {
   quantity: number;
   unitPrice: number | string;
   costPrice: number | string;
+  label?: string | null;
   variant: {
     sku: string;
     color: string;
     size: string;
     product: { name: string };
-  };
+  } | null;
 };
 
 type Installment = {
@@ -149,8 +150,14 @@ export function OrderDetailModal({ order }: { order: OrderDetail }) {
                           className={`flex items-center justify-between gap-3 px-4 py-3 ${idx > 0 ? "border-t border-border" : ""}`}
                         >
                           <div className="min-w-0">
-                            <p className="truncate font-medium text-fg">{item.variant.product.name}</p>
-                            <p className="text-[0.76rem] text-muted">{item.variant.color} / {item.variant.size} · SKU: {item.variant.sku}</p>
+                            <p className="truncate font-medium text-fg">
+                              {item.variant ? item.variant.product.name : (item.label ?? "Item avulso")}
+                            </p>
+                            {item.variant ? (
+                              <p className="text-[0.76rem] text-muted">{item.variant.color} / {item.variant.size} · SKU: {item.variant.sku}</p>
+                            ) : (
+                              <p className="text-[0.76rem] text-warning">Item sem cadastro</p>
+                            )}
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="font-semibold text-fg">{money(Number(item.unitPrice) * item.quantity)}</p>

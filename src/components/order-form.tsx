@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { AlertTriangle, Plus, ReceiptText, Trash2 } from "lucide-react";
+import { AlertTriangle, Package, Plus, ReceiptText, Trash2 } from "lucide-react";
 import { createOrderAction } from "@/app/(app)/actions/orders";
 import { money } from "@/lib/format";
 
@@ -16,11 +16,11 @@ type Variant = {
 };
 
 type CartItem = {
-  variantId: string;
+  variantId: string | null; // null = item avulso
   label: string;
   unitPrice: number;
   quantity: number;
-  maxStock: number;
+  maxStock: number; // Infinity para avulsos
 };
 
 function nextMonthDate(base: Date, plusMonths: number): string {
@@ -33,6 +33,29 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState(variants[0]?.id ?? "");
   const [addQty, setAddQty] = useState(1);
+
+  // item avulso
+  const [showManual, setShowManual] = useState(false);
+  const [manualLabel, setManualLabel] = useState("");
+  const [manualPrice, setManualPrice] = useState("");
+  const [manualQty, setManualQty] = useState(1);
+
+  function addManualItem() {
+    const price = Number(manualPrice);
+    if (!manualLabel.trim() || !price || price <= 0) return;
+    const key = `manual-${Date.now()}`;
+    setCart((prev) => [...prev, {
+      variantId: null,
+      label: manualLabel.trim(),
+      unitPrice: price,
+      quantity: manualQty,
+      maxStock: Infinity
+    }]);
+    setManualLabel("");
+    setManualPrice("");
+    setManualQty(1);
+    setShowManual(false);
+  }
 
   // crediário
   const [installmentCount, setInstallmentCount] = useState(2);
@@ -90,14 +113,14 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
     setAddQty(1);
   }
 
-  function removeFromCart(variantId: string) {
-    setCart((prev) => prev.filter((item) => item.variantId !== variantId));
+  function removeFromCart(index: number) {
+    setCart((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateCartQty(variantId: string, qty: number) {
+  function updateCartQty(index: number, qty: number) {
     setCart((prev) =>
-      prev.map((item) =>
-        item.variantId === variantId
+      prev.map((item, i) =>
+        i === index
           ? { ...item, quantity: Math.max(1, Math.min(qty, item.maxStock)) }
           : item
       )
@@ -136,7 +159,12 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
       itemsInput.name = "items";
       form.appendChild(itemsInput);
     }
-    itemsInput.value = JSON.stringify(cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })));
+    itemsInput.value = JSON.stringify(cart.map((item) => ({
+      variantId: item.variantId ?? null,
+      label: item.label,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity
+    })));
 
     // inject due dates
     let datesInput = form.querySelector<HTMLInputElement>('input[name="dueDates"]');
@@ -236,26 +264,32 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
         {/* lista do carrinho */}
         {cart.length > 0 && (
           <div className="mt-1 grid gap-1.5">
-            {cart.map((item) => (
+            {cart.map((item, index) => (
               <div
-                key={item.variantId}
+                key={index}
                 className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2"
               >
-                <p className="min-w-0 truncate text-[0.83rem] font-medium text-fg">{item.label}</p>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  {!item.variantId && (
+                    <span title="Item avulso" className="shrink-0 text-warning">
+                      <Package size={12} strokeWidth={2.2} />
+                    </span>
+                  )}
+                  <p className="min-w-0 truncate text-[0.83rem] font-medium text-fg">{item.label}</p>
+                </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-[0.78rem] text-muted">{money(item.unitPrice)}</span>
                   <input
                     className="field h-7 w-14 py-0 text-center text-xs"
                     type="number"
                     min="1"
-                    max={item.maxStock}
                     value={item.quantity}
-                    onChange={(e) => updateCartQty(item.variantId, Number(e.target.value))}
+                    onChange={(e) => updateCartQty(index, Number(e.target.value))}
                   />
                   <span className="text-[0.78rem] font-semibold text-fg">{money(item.unitPrice * item.quantity)}</span>
                   <button
                     type="button"
-                    onClick={() => removeFromCart(item.variantId)}
+                    onClick={() => removeFromCart(index)}
                     className="grid h-6 w-6 place-items-center rounded-md text-muted hover:bg-danger-soft hover:text-danger"
                   >
                     <Trash2 size={12} />
@@ -268,6 +302,65 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
               <span className="text-[0.92rem] font-semibold text-fg">{money(cartSubtotal)}</span>
             </div>
           </div>
+        )}
+
+        {/* formulário de item avulso */}
+        {showManual ? (
+          <div className="mt-1 grid gap-2 rounded-xl border border-warning/30 bg-warning/5 p-3">
+            <p className="text-[0.74rem] font-semibold text-warning">Item avulso — sem baixa de estoque</p>
+            <input
+              className="field"
+              placeholder="Nome do produto"
+              value={manualLabel}
+              onChange={(e) => setManualLabel(e.target.value)}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <input
+                className="field flex-1"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Preço (R$)"
+                value={manualPrice}
+                onChange={(e) => setManualPrice(e.target.value)}
+              />
+              <input
+                className="field w-20"
+                type="number"
+                min="1"
+                placeholder="Qtd"
+                value={manualQty}
+                onChange={(e) => setManualQty(Math.max(1, Number(e.target.value)))}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={addManualItem}
+                disabled={!manualLabel.trim() || !manualPrice || Number(manualPrice) <= 0}
+                className="button-primary flex-1 py-2 text-sm"
+              >
+                Adicionar item
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowManual(false); setManualLabel(""); setManualPrice(""); setManualQty(1); }}
+                className="rounded-xl border border-border px-3 text-sm text-muted hover:text-fg"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowManual(true)}
+            className="flex items-center gap-1.5 self-start text-[0.78rem] text-muted transition hover:text-fg"
+          >
+            <Package size={13} strokeWidth={2.2} />
+            Adicionar item sem cadastro
+          </button>
         )}
       </div>
 
