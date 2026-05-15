@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export function OverdueBadge() {
+export function OverdueBadge({ iconOnly = false }: { iconOnly?: boolean } = {}) {
   const [count, setCount] = useState<number>(0);
 
   async function fetchCount() {
@@ -23,6 +23,15 @@ export function OverdueBadge() {
   }, []);
 
   if (count <= 0) return null;
+
+  if (iconOnly) {
+    return (
+      <span
+        className="block h-2 w-2 rounded-full bg-danger"
+        title={`${count} ${count === 1 ? "parcela vencida" : "parcelas vencidas"}`}
+      />
+    );
+  }
 
   return (
     <span
