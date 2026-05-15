@@ -1,36 +1,77 @@
-import { CalendarDays, Wallet } from "lucide-react";
+import { CalendarDays, Clock, TrendingDown, Users, Wallet } from "lucide-react";
 import { InstallmentsTable } from "@/components/installments-table";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
-import { date, money } from "@/lib/format";
+import { money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+
+function sumDecimal(values: number[]): number {
+  // soma centavo a centavo para evitar erros de ponto flutuante
+  const cents = values.reduce((acc, v) => acc + Math.round(v * 100), 0);
+  return cents / 100;
+}
 
 export default async function CreditPage() {
   await connection();
 
-  const orders = await prisma.order.findMany({
-    include: {
-      installments: { where: { paidAt: null } },
-      customer: true
-    },
-    where: { installments: { some: { paidAt: null } } }
-  });
-
-  const openInstallments = orders
-    .flatMap((o) =>
-      o.installments.map((i) => ({
-        ...i,
-        orderCode: o.code,
-        customerName: o.customer?.name ?? "Cliente avulso",
-        customerPhone: o.customer?.phone ?? null
-      }))
-    )
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // busca todas as parcelas abertas com dados do pedido e cliente num único query
+  const openInstallmentsRaw = await prisma.installment.findMany({
+    where: { paidAt: null },
+    include: {
+      order: {
+        select: {
+          code: true,
+          customer: { select: { name: true, phone: true } }
+        }
+      }
+    },
+    orderBy: { dueDate: "asc" }
+  });
+
+  const openInstallments = openInstallmentsRaw.map((i) => ({
+    id: i.id,
+    sequence: i.sequence,
+    totalCount: i.totalCount,
+    dueDate: i.dueDate,
+    amount: Number(i.amount),
+    orderCode: i.order.code,
+    customerName: i.order.customer?.name ?? "Cliente avulso",
+    customerPhone: i.order.customer?.phone ?? null
+  }));
+
+  // --- cálculos precisos ---
+  const totalOpen = sumDecimal(openInstallments.map((i) => i.amount));
+
+  const overdueInstallments = openInstallments.filter((i) => {
+    const due = new Date(i.dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due < today;
+  });
+  const totalOverdue = sumDecimal(overdueInstallments.map((i) => i.amount));
+
+  const todayKey = today.toISOString().slice(0, 10);
+  const todayInstallments = openInstallments.filter((i) => {
+    const due = new Date(i.dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due.toISOString().slice(0, 10) === todayKey;
+  });
+  const totalToday = sumDecimal(todayInstallments.map((i) => i.amount));
+
+  // clientes únicos com dívida
+  const debtorCount = new Set(openInstallments.map((i) => i.customerName)).size;
+
+  // próximo vencimento (futuro mais próximo)
+  const nextDue = openInstallments.find((i) => {
+    const due = new Date(i.dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due >= today;
+  });
+
+  // agenda agrupada por dia
   const scheduleMap = new Map<string, { total: number; count: number; overdue: boolean }>();
   for (const inst of openInstallments) {
     const due = new Date(inst.dueDate);
@@ -39,10 +80,10 @@ export default async function CreditPage() {
     const overdue = due < today;
     const existing = scheduleMap.get(key);
     if (existing) {
-      existing.total += Number(inst.amount);
+      existing.total = sumDecimal([existing.total, inst.amount]);
       existing.count += 1;
     } else {
-      scheduleMap.set(key, { total: Number(inst.amount), count: 1, overdue });
+      scheduleMap.set(key, { total: inst.amount, count: 1, overdue });
     }
   }
 
@@ -57,11 +98,6 @@ export default async function CreditPage() {
     return aOver ? db - da : da - db;
   });
 
-  const scheduleTotal = scheduleEntries.reduce((s, [, { total }]) => s + total, 0);
-  const overdueTotal = scheduleEntries
-    .filter(([, { overdue }]) => overdue)
-    .reduce((s, [, { total }]) => s + total, 0);
-
   return (
     <AnimatedShell className="grid gap-6">
       <PageHeader
@@ -69,37 +105,86 @@ export default async function CreditPage() {
         description="Agenda de recebimentos por dia e controle de parcelas em aberto."
       />
 
+      {/* cards de resumo */}
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="surface-card flex items-center gap-4 p-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
+            <Wallet size={18} strokeWidth={2.1} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-muted">Total em aberto</p>
+            <p className="mt-0.5 font-display text-xl font-bold text-fg">{money(totalOpen)}</p>
+            <p className="text-[0.72rem] text-muted">{openInstallments.length} {openInstallments.length === 1 ? "parcela" : "parcelas"}</p>
+          </div>
+        </div>
+
+        <div className={`surface-card flex items-center gap-4 p-4 ${totalOverdue > 0 ? "ring-1 ring-danger/20" : ""}`}>
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${totalOverdue > 0 ? "bg-gradient-to-br from-danger to-danger/70" : "bg-surface-2"} text-primary-fg`}>
+            <TrendingDown size={18} strokeWidth={2.1} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-muted">Em atraso</p>
+            <p className={`mt-0.5 font-display text-xl font-bold ${totalOverdue > 0 ? "text-danger" : "text-muted"}`}>
+              {totalOverdue > 0 ? money(totalOverdue) : "Nenhum"}
+            </p>
+            <p className="text-[0.72rem] text-muted">
+              {overdueInstallments.length > 0
+                ? `${overdueInstallments.length} ${overdueInstallments.length === 1 ? "parcela vencida" : "parcelas vencidas"}`
+                : "Tudo em dia"}
+            </p>
+          </div>
+        </div>
+
+        <div className="surface-card flex items-center gap-4 p-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-warning to-warning/70 text-primary-fg">
+            <Clock size={18} strokeWidth={2.1} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-muted">Vence hoje</p>
+            <p className="mt-0.5 font-display text-xl font-bold text-fg">
+              {totalToday > 0 ? money(totalToday) : <span className="text-muted text-base font-medium">Nenhuma hoje</span>}
+            </p>
+            <p className="text-[0.72rem] text-muted">
+              {todayInstallments.length > 0
+                ? `${todayInstallments.length} ${todayInstallments.length === 1 ? "parcela" : "parcelas"}`
+                : nextDue
+                  ? `Próx: ${new Date(nextDue.dueDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
+                  : ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="surface-card flex items-center gap-4 p-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-success to-success/70 text-primary-fg">
+            <Users size={18} strokeWidth={2.1} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-muted">Clientes devedores</p>
+            <p className="mt-0.5 font-display text-xl font-bold text-fg">{debtorCount}</p>
+            <p className="text-[0.72rem] text-muted">
+              {debtorCount === 0 ? "Nenhum devedor" : debtorCount === 1 ? "com parcela em aberto" : "com parcelas em aberto"}
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* agenda de recebimentos */}
       {scheduleEntries.length > 0 && (
         <section className="surface-card grid gap-4 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
-                <CalendarDays size={17} strokeWidth={2.1} />
-              </span>
-              <div>
-                <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Agenda de recebimentos</h2>
-                <p className="text-[0.76rem] font-normal text-muted">Previsão por dia com base nas parcelas em aberto.</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <div className="rounded-xl border border-border bg-surface-2/40 px-4 py-2.5">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted">Total a receber</p>
-                <p className="mt-0.5 font-display text-lg font-bold text-fg">{money(scheduleTotal)}</p>
-              </div>
-              {overdueTotal > 0 && (
-                <div className="rounded-xl border border-danger/25 bg-danger-soft px-4 py-2.5">
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-danger">Em atraso</p>
-                  <p className="mt-0.5 font-display text-lg font-bold text-danger">{money(overdueTotal)}</p>
-                </div>
-              )}
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
+              <CalendarDays size={17} strokeWidth={2.1} />
+            </span>
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Agenda de recebimentos</h2>
+              <p className="text-[0.76rem] font-normal text-muted">Previsão por dia com base nas parcelas em aberto.</p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             {scheduleEntries.map(([dateKey, { total, count, overdue }]) => {
               const d = new Date(dateKey + "T12:00:00");
-              const isToday = dateKey === today.toISOString().slice(0, 10);
+              const isToday = dateKey === todayKey;
               return (
                 <div
                   key={dateKey}
@@ -148,9 +233,7 @@ export default async function CreditPage() {
         <InstallmentsTable
           installments={openInstallments.map((i) => ({
             ...i,
-            amount: Number(i.amount),
-            dueDate: i.dueDate instanceof Date ? i.dueDate.toISOString() : String(i.dueDate),
-            customerPhone: i.customerPhone ?? null
+            dueDate: i.dueDate instanceof Date ? i.dueDate.toISOString() : String(i.dueDate)
           }))}
         />
       </section>
