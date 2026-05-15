@@ -52,7 +52,7 @@ export default async function SalesPage() {
         </div>
 
         <div className="grid gap-2">
-          <div className="table-shell max-h-[32rem] overflow-auto xl:max-h-[calc(100vh-12rem)]">
+          <div className="table-shell max-h-[32rem] xl:max-h-[calc(100vh-12rem)]">
             <table className="data-table">
               <thead>
                 <tr>

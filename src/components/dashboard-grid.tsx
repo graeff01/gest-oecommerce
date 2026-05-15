@@ -292,7 +292,7 @@ export function DashboardGrid({ data, savedLayout }: Props) {
     });
   };
 
-  const ROW_HEIGHT = 48;
+  const ROW_HEIGHT = 36;
   const COLS = 12;
   const MARGIN: [number, number] = [12, 12];
 
