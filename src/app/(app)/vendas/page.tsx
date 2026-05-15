@@ -44,21 +44,23 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
         description="Registre a venda uma vez: o sistema baixa o estoque automaticamente e cria a receita no financeiro."
         action={<a href="/api/export/orders" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>}
       />
-      <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <OrderForm
-          customers={customers.map((c) => ({ id: c.id, name: c.name }))}
-          variants={variants.map((v) => ({
-            id: v.id,
-            color: v.color,
-            size: v.size,
-            salePrice: Number(v.salePrice),
-            stockQuantity: v.stockQuantity,
-            product: { name: v.product.name }
-          }))}
-        />
+      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <div className="xl:sticky xl:top-4">
+          <OrderForm
+            customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+            variants={variants.map((v) => ({
+              id: v.id,
+              color: v.color,
+              size: v.size,
+              salePrice: Number(v.salePrice),
+              stockQuantity: v.stockQuantity,
+              product: { name: v.product.name }
+            }))}
+          />
+        </div>
 
         <div className="grid gap-2">
-          <div className="table-shell overflow-x-auto">
+          <div className="table-shell max-h-[32rem] overflow-auto xl:max-h-[calc(100vh-12rem)]">
             <table className="data-table">
               <thead>
                 <tr>
@@ -105,17 +107,21 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                               amount: Number(i.amount)
                             }))
                           }} />
-                          <OrderEditModal order={{
-                            id: order.id,
-                            channel: order.channel,
-                            discount: Number(order.discount),
-                            fee: Number(order.fee),
-                            notes: order.notes,
-                            status: order.status,
-                            paymentMethod: order.paymentMethod,
-                            total: Number(order.total),
-                            subtotal: Number(order.subtotal)
-                          }} />
+                          <OrderEditModal
+                            order={{
+                              id: order.id,
+                              channel: order.channel,
+                              discount: Number(order.discount),
+                              fee: Number(order.fee),
+                              notes: order.notes,
+                              status: order.status,
+                              paymentMethod: order.paymentMethod,
+                              total: Number(order.total),
+                              subtotal: Number(order.subtotal)
+                            }}
+                            customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+                            customerId={order.customerId}
+                          />
                           {order.status !== "CANCELED" && order.status !== "DELIVERED" ? (
                             <div className="flex items-center gap-1">
                               <form action={updateOrderStatusAction} className="flex items-center gap-1">

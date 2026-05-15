@@ -224,6 +224,9 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
   const parsed = z.object({
     id: z.string().min(1),
     channel: z.string().min(1),
+    status: z.enum(["NEW", "PAID", "PICKING", "SHIPPED", "DELIVERED"]).optional(),
+    paymentMethod: z.enum(["PIX", "CREDIT_CARD", "DEBIT_CARD", "CASH", "BANK_SLIP", "MARKETPLACE", "CREDIARIO"]).optional(),
+    customerId: z.string().optional(),
     discount: z.coerce.number().min(0).default(0),
     fee: z.coerce.number().min(0).default(0),
     notes: z.string().optional()
@@ -231,7 +234,7 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
 
   if (!parsed.success) return { error: parsed.error.errors[0].message };
 
-  const { id, channel, discount, fee, notes } = parsed.data;
+  const { id, channel, status, paymentMethod, customerId, discount, fee, notes } = parsed.data;
 
   const order = await prisma.order.findUnique({ where: { id }, select: { subtotal: true, status: true } });
   if (!order) return { error: "Pedido não encontrado." };
@@ -239,7 +242,19 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
 
   const total = Math.max(0, Number(order.subtotal) - discount + fee);
 
-  await prisma.order.update({ where: { id }, data: { channel, discount, fee, total, notes: notes || null } });
+  await prisma.order.update({
+    where: { id },
+    data: {
+      channel,
+      discount,
+      fee,
+      total,
+      notes: notes || null,
+      ...(status ? { status } : {}),
+      ...(paymentMethod ? { paymentMethod } : {}),
+      ...(customerId !== undefined ? { customerId: customerId || null } : {})
+    }
+  });
 
   revalidatePath("/vendas");
   revalidatePath("/clientes");

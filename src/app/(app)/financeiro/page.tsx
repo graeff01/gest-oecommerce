@@ -82,11 +82,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </div>
       </form>
 
-      <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <FinanceForm categories={financeCategories} />
+      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <div className="xl:sticky xl:top-4">
+          <FinanceForm categories={financeCategories} />
+        </div>
 
         <div className="grid gap-2">
-          <div className="table-shell overflow-x-auto">
+          <div className="table-shell max-h-[32rem] overflow-auto xl:max-h-[calc(100vh-12rem)]">
             <table className="data-table">
               <thead>
                 <tr>

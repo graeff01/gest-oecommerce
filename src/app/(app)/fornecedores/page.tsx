@@ -18,8 +18,8 @@ export default async function SuppliersPage() {
         title="Fornecedores"
         description="Organize fornecedores, contatos, prazos e histórico de compras de mercadoria."
       />
-      <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <form action={createSupplierAction} className="surface-card grid gap-4 p-5">
+      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <form action={createSupplierAction} className="surface-card grid gap-4 p-5 xl:sticky xl:top-4">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-info to-primary text-primary-fg shadow-glow">
               <Building2 size={17} strokeWidth={2.1} />
@@ -40,7 +40,7 @@ export default async function SuppliersPage() {
           <button className="button-primary">Cadastrar fornecedor</button>
         </form>
 
-        <div className="table-shell overflow-x-auto">
+        <div className="table-shell max-h-[32rem] overflow-auto xl:max-h-[calc(100vh-12rem)]">
           <table className="data-table">
             <thead>
               <tr>

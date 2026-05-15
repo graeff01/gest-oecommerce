@@ -23,8 +23,8 @@ export default async function PurchasesPage() {
         title="Compras"
         description="Área preparada para compras de fornecedor, recebimento e entrada automática de mercadoria."
       />
-      <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <form action={createPurchaseAction} className="surface-card grid gap-4 p-5">
+      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <form action={createPurchaseAction} className="surface-card grid gap-4 p-5 xl:sticky xl:top-4">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-warning to-accent text-fg">
               <PackagePlus size={17} strokeWidth={2.1} />
