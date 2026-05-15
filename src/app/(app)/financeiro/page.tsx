@@ -4,18 +4,14 @@ import { AnimatedShell } from "@/components/animated-shell";
 import { FinanceForm } from "@/components/finance-form";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
-import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings, DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
 import { deleteFinancialTransactionAction } from "../actions/finance";
 
-const PAGE_SIZE = 30;
-
-export default async function FinancePage({ searchParams }: { searchParams: Promise<{ page?: string; from?: string; to?: string }> }) {
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
   await connection();
-  const { page: pageParam, from, to } = await searchParams;
-  const page = Math.max(1, Number(pageParam) || 1);
+  const { from, to } = await searchParams;
 
   const dateFilter = from || to ? {
     createdAt: {
@@ -29,7 +25,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     ? storeSettings.financeCategories
     : DEFAULT_FINANCE_CATEGORIES;
 
-  const [totals, transactions, total] = await Promise.all([
+  const [totals, transactions] = await Promise.all([
     prisma.financialTransaction.groupBy({
       by: ["type"],
       where: dateFilter,
@@ -37,11 +33,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     }),
     prisma.financialTransaction.findMany({
       where: dateFilter,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE
-    }),
-    prisma.financialTransaction.count({ where: dateFilter })
+      orderBy: { createdAt: "desc" }
+    })
   ]);
 
   const revenue = Number(totals.find((t) => t.type === "REVENUE")?._sum.amount ?? 0);
@@ -135,7 +128,6 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
               </tbody>
             </table>
           </div>
-          <Pagination total={total} page={page} pageSize={PAGE_SIZE} />
         </div>
       </section>
     </AnimatedShell>

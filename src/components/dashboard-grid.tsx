@@ -263,17 +263,15 @@ export function DashboardGrid({ data, savedLayout }: Props) {
     y: w.y,
     w: w.w,
     h: w.h,
-    minW: w.minW ?? 2,
-    minH: w.minH ?? 2,
     isDraggable: editing,
-    isResizable: editing
+    isResizable: false,
   }));
 
-  const handleLayoutChange = useCallback((newGl: { i: string; x: number; y: number; w: number; h: number }[]) => {
+  const handleLayoutChange = useCallback((newGl: { i: string; x: number; y: number }[]) => {
     setLayout((prev) => prev.map((item) => {
       const updated = newGl.find((g) => g.i === item.i);
       if (!updated) return item;
-      return { ...item, x: updated.x, y: updated.y, w: updated.w, h: updated.h };
+      return { ...item, x: updated.x, y: updated.y };
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -353,7 +351,7 @@ export function DashboardGrid({ data, savedLayout }: Props) {
       {editing && (
         <div className="flex items-center gap-2 rounded-xl border border-primary/25 bg-primary-soft px-4 py-2.5 text-sm text-primary">
           <GripVertical size={14} className="shrink-0" />
-          Arraste os widgets para reposicionar e puxe as bordas para redimensionar.
+          Arraste os widgets para reposicionar. Use o botão Widgets para mostrar ou ocultar blocos.
         </div>
       )}
 
@@ -368,9 +366,8 @@ export function DashboardGrid({ data, savedLayout }: Props) {
           containerPadding={[0, 0]}
           onLayoutChange={handleLayoutChange}
           isDraggable={editing}
-          isResizable={editing}
+          isResizable={false}
           draggableHandle=".drag-handle"
-          resizeHandles={["se", "sw", "ne", "nw", "e", "w", "n", "s"]}
           className="relative"
         >
           {visibleLayout.map((widget) => (

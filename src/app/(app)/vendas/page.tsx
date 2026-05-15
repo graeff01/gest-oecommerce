@@ -5,30 +5,22 @@ import { OrderDetailModal } from "@/components/order-detail-modal";
 import { OrderEditModal } from "@/components/order-edit-modal";
 import { OrderForm } from "@/components/order-form";
 import { PageHeader } from "@/components/page-header";
-import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { cancelOrderAction, updateOrderStatusAction } from "../actions/orders";
 
-const PAGE_SIZE = 20;
-
-export default async function SalesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function SalesPage() {
   await connection();
-  const { page: pageParam } = await searchParams;
-  const page = Math.max(1, Number(pageParam) || 1);
 
-  const [total, orders, customers, variants] = await Promise.all([
-    prisma.order.count(),
+  const [orders, customers, variants] = await Promise.all([
     prisma.order.findMany({
       include: {
         customer: true,
         items: { include: { variant: { include: { product: true } } } },
         installments: { orderBy: { sequence: "asc" } }
       },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE
+      orderBy: { createdAt: "desc" }
     }),
     prisma.customer.findMany({ orderBy: { name: "asc" } }),
     prisma.productVariant.findMany({
@@ -155,7 +147,6 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
               </tbody>
             </table>
           </div>
-          <Pagination total={total} page={page} pageSize={PAGE_SIZE} />
         </div>
       </section>
     </AnimatedShell>
