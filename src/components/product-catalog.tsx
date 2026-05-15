@@ -56,20 +56,89 @@ type ProductSummary = CatalogProduct & {
   searchable: string;
 };
 
+// paleta de gradientes para ícones — atribuída por hash do nome
+const ICON_PALETTES = [
+  { from: "#6366f1", to: "#818cf8", shadow: "#6366f140" }, // índigo
+  { from: "#ec4899", to: "#f472b6", shadow: "#ec489940" }, // rosa
+  { from: "#10b981", to: "#34d399", shadow: "#10b98140" }, // verde
+  { from: "#f59e0b", to: "#fbbf24", shadow: "#f59e0b40" }, // âmbar
+  { from: "#3b82f6", to: "#60a5fa", shadow: "#3b82f640" }, // azul
+  { from: "#8b5cf6", to: "#a78bfa", shadow: "#8b5cf640" }, // violeta
+  { from: "#0ea5e9", to: "#38bdf8", shadow: "#0ea5e940" }, // céu
+  { from: "#14b8a6", to: "#2dd4bf", shadow: "#14b8a640" }, // teal
+  { from: "#f97316", to: "#fb923c", shadow: "#f9731640" }, // laranja
+  { from: "#ef4444", to: "#f87171", shadow: "#ef444440" }, // vermelho
+];
+
+// cores para tags — cicla pela lista
+const TAG_PALETTES = [
+  "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700/40",
+  "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-700/40",
+  "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-700/40",
+  "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40",
+  "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40",
+  "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700/40",
+  "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-700/40",
+  "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700/40",
+];
+
+function hashIndex(str: string, len: number) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h % len;
+}
+
+function paletteFor(name: string) {
+  return ICON_PALETTES[hashIndex(name, ICON_PALETTES.length)];
+}
+
+function tagColor(tag: string) {
+  return TAG_PALETTES[hashIndex(tag, TAG_PALETTES.length)];
+}
+
 function iconFor(value: string) {
   const name = value.toLowerCase();
   if (name.includes("tenis") || name.includes("calc") || name.includes("sapato")) return Footprints;
-  if (name.includes("roup") || name.includes("camis") || name.includes("vest")) return Shirt;
+  if (name.includes("roup") || name.includes("camis") || name.includes("vest") || name.includes("pijama") || name.includes("blus")) return Shirt;
   if (name.includes("premium") || name.includes("casual")) return ShoppingBag;
   return Tag;
 }
 
-function ProductIcon({ product }: { product: CatalogProduct }) {
+function ProductIcon({ product, size = "md" }: { product: CatalogProduct; size?: "sm" | "md" }) {
   const Icon = iconFor(product.category || product.tags[0] || product.name);
+  const palette = paletteFor(product.name);
+  const dim = size === "sm" ? "h-10 w-10" : "h-12 w-12";
+  const iconSize = size === "sm" ? 17 : 21;
 
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
-      <Icon size={21} strokeWidth={2.1} />
+    <span
+      className={`grid ${dim} shrink-0 place-items-center rounded-2xl text-white`}
+      style={{
+        background: `linear-gradient(135deg, ${palette.from}, ${palette.to})`,
+        boxShadow: `0 4px 14px ${palette.shadow}`
+      }}
+    >
+      <Icon size={iconSize} strokeWidth={2.1} />
+    </span>
+  );
+}
+
+function SectionIcon({ name, active }: { name: string; active: boolean }) {
+  const Icon = iconFor(name);
+  const palette = paletteFor(name);
+  return (
+    <span
+      className="grid h-11 w-11 place-items-center rounded-xl transition"
+      style={active ? {
+        background: "rgba(255,255,255,0.18)",
+        backdropFilter: "blur(8px)"
+      } : {
+        background: `linear-gradient(135deg, ${palette.from}22, ${palette.to}18)`,
+        color: palette.from,
+        border: `1px solid ${palette.from}30`
+      }}
+    >
+      <Icon size={20} strokeWidth={2.1} style={active ? { color: "#fff" } : { color: palette.from }} />
     </span>
   );
 }
@@ -204,11 +273,11 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
               <span
                 className={`grid h-11 w-11 place-items-center rounded-xl transition ${
                   activeSection === "__all__"
-                    ? "bg-white/15 text-primary-fg backdrop-blur"
-                    : "bg-primary-soft text-primary"
+                    ? "bg-white/15 backdrop-blur"
+                    : "bg-gradient-to-br from-primary/20 to-primary-2/10 border border-primary/20"
                 }`}
               >
-                <Layers3 size={20} strokeWidth={2.1} />
+                <Layers3 size={20} strokeWidth={2.1} className={activeSection === "__all__" ? "text-white" : "text-primary"} />
               </span>
               {hasAnyLowStock ? (
                 <span
@@ -246,7 +315,6 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
           </button>
 
           {sections.map((section) => {
-            const Icon = iconFor(section.name);
             const active = activeSection === section.name;
 
             return (
@@ -265,13 +333,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
                 ) : null}
 
                 <div className="relative flex items-start justify-between gap-3">
-                  <span
-                    className={`grid h-11 w-11 place-items-center rounded-xl transition ${
-                      active ? "bg-white/15 text-primary-fg backdrop-blur" : "bg-primary-soft text-primary"
-                    }`}
-                  >
-                    <Icon size={20} strokeWidth={2.1} />
-                  </span>
+                  <SectionIcon name={section.name} active={active} />
                   {section.lowStock ? (
                     <span
                       className={
@@ -374,13 +436,18 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
 
               <div className="flex flex-wrap gap-1.5">
                 {product.tags.length ? (
-                  product.tags.slice(0, 4).map((item) => (
-                    <span key={item} className="chip max-w-[10rem] truncate">
-                      #{item}
+                  product.tags.slice(0, 4).map((tag) => (
+                    <span
+                      key={tag}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.7rem] font-semibold tracking-wide ${tagColor(tag)}`}
+                    >
+                      <span className="opacity-60">#</span>{tag}
                     </span>
                   ))
                 ) : (
-                  <span className="chip">sem tags</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2/60 px-2.5 py-0.5 text-[0.7rem] font-medium text-muted">
+                    sem tags
+                  </span>
                 )}
               </div>
 
@@ -445,16 +512,19 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
             >
               <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-surface/60 p-4 sm:p-5">
                 <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                  <div className="hidden sm:block"><ProductIcon product={selectedProduct} /></div>
+                  <div className="hidden sm:block"><ProductIcon product={selectedProduct} size="sm" /></div>
                   <div className="min-w-0">
                     <h2 className="truncate font-display text-lg font-semibold tracking-tight text-fg sm:text-2xl">{selectedProduct.name}</h2>
                     <p className="mt-1 truncate text-[0.82rem] font-normal text-muted sm:text-[0.85rem]">
                       {selectedProduct.category} · {selectedProduct.brand || "Sem marca"} · {selectedProduct.gender || "Geral"}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {selectedProduct.tags.map((item) => (
-                        <span key={item} className="chip">
-                          #{item}
+                      {selectedProduct.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.7rem] font-semibold tracking-wide ${tagColor(tag)}`}
+                        >
+                          <span className="opacity-60">#</span>{tag}
                         </span>
                       ))}
                     </div>
