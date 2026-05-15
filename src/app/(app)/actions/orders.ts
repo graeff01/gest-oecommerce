@@ -229,13 +229,19 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
 }
 
 export async function updateOrderStatusAction(formData: FormData) {
-  await requireRole(["ADMIN", "SALES"]);
+  const user = await requireRole(["ADMIN", "SALES"]);
   const { id, status } = z.object({
     id: z.string().min(1),
     status: z.enum(["NEW", "PAID", "PICKING", "SHIPPED", "DELIVERED", "CANCELED"])
   }).parse(Object.fromEntries(formData));
 
-  await prisma.order.update({ where: { id }, data: { status } });
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id }, data: { status } });
+    await tx.auditLog.create({
+      data: { userId: user.id, action: "UPDATE_ORDER_STATUS", entity: "Order", entityId: id, metadata: { status } }
+    });
+  });
+
   revalidatePath("/vendas");
   revalidatePath("/");
 }

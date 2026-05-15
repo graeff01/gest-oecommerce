@@ -76,6 +76,9 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
+
+  @@index([name])
+  @@index([createdAt])
 }
 
 model Supplier {
@@ -123,6 +126,9 @@ model ProductVariant {
   orderItems    OrderItem[]
   movements     StockMovement[]
   purchaseItems PurchaseItem[]
+
+  @@index([productId])
+  @@index([stockQuantity])
 }
 
 model StockMovement {
@@ -135,6 +141,9 @@ model StockMovement {
   createdAt   DateTime          @default(now())
   variant     ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
   user        User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([variantId])
+  @@index([createdAt])
 }
 
 model Order {
@@ -154,6 +163,11 @@ model Order {
   customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items         OrderItem[]
   installments  Installment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([channel])
 }
 
 model Installment {
@@ -197,6 +211,10 @@ model FinancialTransaction {
   notes         String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([dueDate])
 }
 
 model Purchase {
@@ -230,6 +248,10 @@ model AuditLog {
   metadata  Json?
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([entity, entityId])
 }
 
 model StoreSettings {

@@ -1,15 +1,14 @@
-import { CircleDollarSign, Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
-import { FinanceCategorySelect } from "@/components/finance-category-select";
+import { FinanceForm } from "@/components/finance-form";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { date, money } from "@/lib/format";
-import { PAYMENT_METHODS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings, DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
-import { createFinancialTransactionAction, deleteFinancialTransactionAction } from "../actions/finance";
+import { deleteFinancialTransactionAction } from "../actions/finance";
 
 const PAGE_SIZE = 30;
 
@@ -84,55 +83,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </form>
 
       <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <form action={createFinancialTransactionAction} className="surface-card grid gap-4 p-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-2 text-primary-fg shadow-glow">
-              <CircleDollarSign size={17} strokeWidth={2.1} />
-            </span>
-            <div>
-              <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Novo lançamento</h2>
-              <p className="text-[0.76rem] font-normal text-muted">Receita ou despesa, com vínculo de pagamento.</p>
-            </div>
-          </div>
-          <label className="label">
-            Tipo
-            <select className="field" name="type">
-              <option value="REVENUE">Receita</option>
-              <option value="EXPENSE">Gasto</option>
-            </select>
-          </label>
-          <label className="label">
-            Título<input className="field" name="title" required />
-          </label>
-          <label className="label">
-            Categoria
-            <FinanceCategorySelect categories={financeCategories} name="category" required />
-          </label>
-          <label className="label">
-            Valor<input className="field" name="amount" type="number" min="0" step="0.01" required />
-          </label>
-          <label className="label">
-            Pagamento
-            <select className="field" name="paymentMethod">
-              <option value="">Não definido</option>
-              {PAYMENT_METHODS.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </label>
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="label">
-              Vencimento<input className="field" name="dueDate" type="date" />
-            </label>
-            <label className="label">
-              Pago em<input className="field" name="paidAt" type="date" />
-            </label>
-          </div>
-          <label className="label">
-            Observações<textarea className="field min-h-20" name="notes" />
-          </label>
-          <button className="button-primary">Salvar lançamento</button>
-        </form>
+        <FinanceForm categories={financeCategories} />
 
         <div className="grid gap-2">
           <div className="table-shell overflow-x-auto">

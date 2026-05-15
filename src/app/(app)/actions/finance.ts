@@ -6,9 +6,9 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const decimal = z.coerce.number().min(0);
+const decimal = z.coerce.number().min(0).max(9_999_999.99);
 
-export async function createFinancialTransactionAction(formData: FormData) {
+export async function createFinancialTransactionAction(_prev: unknown, formData: FormData) {
   await requireRole(["ADMIN", "FINANCE"]);
   const parsed = z.object({
     type: z.enum(["REVENUE", "EXPENSE"]),
@@ -19,20 +19,26 @@ export async function createFinancialTransactionAction(formData: FormData) {
     dueDate: z.string().optional(),
     paidAt: z.string().optional(),
     notes: z.string().optional()
-  }).parse(Object.fromEntries(formData));
+  }).safeParse(Object.fromEntries(formData));
 
-  await prisma.financialTransaction.create({
-    data: {
-      type: parsed.type,
-      title: parsed.title,
-      category: parsed.category,
-      amount: parsed.amount,
-      paymentMethod: parsed.paymentMethod || null,
-      dueDate: parsed.dueDate ? new Date(parsed.dueDate) : null,
-      paidAt: parsed.paidAt ? new Date(parsed.paidAt) : null,
-      notes: parsed.notes
-    }
-  });
+  if (!parsed.success) return { error: parsed.error.errors[0].message };
+
+  try {
+    await prisma.financialTransaction.create({
+      data: {
+        type: parsed.data.type,
+        title: parsed.data.title,
+        category: parsed.data.category,
+        amount: parsed.data.amount,
+        paymentMethod: parsed.data.paymentMethod || null,
+        dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+        paidAt: parsed.data.paidAt ? new Date(parsed.data.paidAt) : null,
+        notes: parsed.data.notes
+      }
+    });
+  } catch {
+    return { error: "Erro ao salvar lançamento. Tente novamente." };
+  }
 
   revalidatePath("/financeiro");
   revalidatePath("/");
