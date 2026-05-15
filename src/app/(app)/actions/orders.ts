@@ -138,6 +138,21 @@ export async function createOrderAction(formData: FormData) {
           amount: (baseCents + (i === count - 1 ? remainder : 0)) / 100
         }))
       });
+
+      // lança parcelas como receitas previstas (a receber) no financeiro
+      await tx.financialTransaction.createMany({
+        data: dueDates.map((dateStr, i) => {
+          const amount = (baseCents + (i === count - 1 ? remainder : 0)) / 100;
+          return {
+            type: "REVENUE" as const,
+            title: `Parcela ${i + 1}/${count} - ${code}`,
+            category: "Crediário",
+            amount,
+            dueDate: new Date(dateStr),
+            paidAt: null
+          };
+        })
+      });
     } else {
       await tx.financialTransaction.create({
         data: {
@@ -177,14 +192,11 @@ export async function cancelOrderAction(formData: FormData) {
     if (order.status === "CANCELED") throw new Error("Pedido já está cancelado.");
     if (order.status === "DELIVERED") throw new Error("Não é possível cancelar um pedido já entregue.");
 
-    const hasAnyPaid = order.installments.some((i) => i.paidAt !== null);
-    if (hasAnyPaid) throw new Error("Não é possível cancelar um pedido com parcelas já pagas.");
-
     await tx.order.update({ where: { id }, data: { status: "CANCELED" } });
 
     // Devolve estoque apenas para itens com variante cadastrada
     for (const item of order.items) {
-      if (!item.variantId) continue; // item avulso: sem estoque para devolver
+      if (!item.variantId) continue;
       await tx.productVariant.update({
         where: { id: item.variantId },
         data: { stockQuantity: { increment: item.quantity } }
@@ -200,8 +212,30 @@ export async function cancelOrderAction(formData: FormData) {
       });
     }
 
-    // Estorna o lançamento financeiro da venda (pagamentos à vista)
-    if (order.paymentMethod !== "CREDIARIO") {
+    if (order.paymentMethod === "CREDIARIO") {
+      // remove todos os lançamentos previstos (paidAt null) das parcelas
+      await tx.financialTransaction.deleteMany({
+        where: { title: { startsWith: `Parcela ` }, category: "Crediário", paidAt: null,
+          AND: [{ title: { contains: order.code } }]
+        }
+      });
+
+      // estorna parcelas que já foram pagas
+      const paidInstallments = order.installments.filter((i) => i.paidAt !== null);
+      if (paidInstallments.length > 0) {
+        const paidTotal = paidInstallments.reduce((s, i) => s + Math.round(Number(i.amount) * 100), 0) / 100;
+        await tx.financialTransaction.create({
+          data: {
+            type: "EXPENSE",
+            title: `Estorno cancelamento ${order.code}`,
+            category: "Estorno",
+            amount: paidTotal,
+            paidAt: new Date(),
+            notes: `${paidInstallments.length} parcela(s) estornada(s)`
+          }
+        });
+      }
+    } else {
       await tx.financialTransaction.deleteMany({
         where: { title: `Venda ${order.code}`, type: "REVENUE" }
       });
@@ -236,28 +270,63 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
 
   const { id, channel, status, paymentMethod, customerId, discount, fee, notes } = parsed.data;
 
-  const order = await prisma.order.findUnique({ where: { id }, select: { subtotal: true, status: true } });
+  const order = await prisma.order.findUnique({
+    where: { id },
+    select: { subtotal: true, total: true, status: true, paymentMethod: true, code: true }
+  });
   if (!order) return { error: "Pedido não encontrado." };
   if (order.status === "CANCELED") return { error: "Não é possível editar um pedido cancelado." };
 
-  const total = Math.max(0, Number(order.subtotal) - discount + fee);
+  const newTotal = Math.max(0, Number(order.subtotal) - discount + fee);
+  const oldTotal = Number(order.total);
+  const diff = Math.round((newTotal - oldTotal) * 100) / 100;
 
-  await prisma.order.update({
-    where: { id },
-    data: {
-      channel,
-      discount,
-      fee,
-      total,
-      notes: notes || null,
-      ...(status ? { status } : {}),
-      ...(paymentMethod ? { paymentMethod } : {}),
-      ...(customerId !== undefined ? { customerId: customerId || null } : {})
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id },
+      data: {
+        channel,
+        discount,
+        fee,
+        total: newTotal,
+        notes: notes || null,
+        ...(status ? { status } : {}),
+        ...(paymentMethod ? { paymentMethod } : {}),
+        ...(customerId !== undefined ? { customerId: customerId || null } : {})
+      }
+    });
+
+    // ajusta financeiro apenas se o total mudou e o pedido já foi pago (não crediário)
+    if (Math.abs(diff) >= 0.01 && order.paymentMethod !== "CREDIARIO" && (order.status === "PAID" || order.status === "DELIVERED" || order.status === "SHIPPED" || order.status === "PICKING")) {
+      if (diff > 0) {
+        await tx.financialTransaction.create({
+          data: {
+            type: "REVENUE",
+            title: `Ajuste ${order.code}`,
+            category: "Ajuste de venda",
+            amount: diff,
+            paidAt: new Date(),
+            notes: `Acréscimo de ${diff.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} após edição`
+          }
+        });
+      } else {
+        await tx.financialTransaction.create({
+          data: {
+            type: "EXPENSE",
+            title: `Ajuste ${order.code}`,
+            category: "Ajuste de venda",
+            amount: Math.abs(diff),
+            paidAt: new Date(),
+            notes: `Desconto de ${Math.abs(diff).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} após edição`
+          }
+        });
+      }
     }
   });
 
   revalidatePath("/vendas");
   revalidatePath("/clientes");
+  revalidatePath("/financeiro");
   revalidatePath("/");
   return { success: true };
 }
@@ -303,16 +372,22 @@ export async function payInstallmentAction(formData: FormData) {
       data: { paidAt: now, paymentMethod: method }
     });
 
-    await tx.financialTransaction.create({
-      data: {
-        type: "REVENUE",
-        title: `Parcela ${installment.sequence}/${installment.totalCount} - ${installment.order.code}`,
-        category: "Crediário",
-        amount: installment.amount,
-        paymentMethod: method,
-        paidAt: now
-      }
+    const title = `Parcela ${installment.sequence}/${installment.totalCount} - ${installment.order.code}`;
+
+    // atualiza o lançamento previsto se existir, senão cria um novo
+    const existing = await tx.financialTransaction.findFirst({
+      where: { title, category: "Crediário", paidAt: null }
     });
+    if (existing) {
+      await tx.financialTransaction.update({
+        where: { id: existing.id },
+        data: { paidAt: now, paymentMethod: method }
+      });
+    } else {
+      await tx.financialTransaction.create({
+        data: { type: "REVENUE", title, category: "Crediário", amount: installment.amount, paymentMethod: method, paidAt: now }
+      });
+    }
 
     // Quando todas parcelas pagas, marca pedido como PAID
     const remaining = installment.order.installments.filter((i) => i.id !== installment.id && !i.paidAt).length;
@@ -440,16 +515,20 @@ export async function payManyInstallmentsAction(formData: FormData) {
     for (const inst of installments) {
       await tx.installment.update({ where: { id: inst.id }, data: { paidAt: now, paymentMethod: method } });
 
-      await tx.financialTransaction.create({
-        data: {
-          type: "REVENUE",
-          title: `Parcela ${inst.sequence}/${inst.totalCount} - ${inst.order.code}`,
-          category: "Crediário",
-          amount: inst.amount,
-          paymentMethod: method,
-          paidAt: now
-        }
+      const title = `Parcela ${inst.sequence}/${inst.totalCount} - ${inst.order.code}`;
+      const existing = await tx.financialTransaction.findFirst({
+        where: { title, category: "Crediário", paidAt: null }
       });
+      if (existing) {
+        await tx.financialTransaction.update({
+          where: { id: existing.id },
+          data: { paidAt: now, paymentMethod: method }
+        });
+      } else {
+        await tx.financialTransaction.create({
+          data: { type: "REVENUE", title, category: "Crediário", amount: inst.amount, paymentMethod: method, paidAt: now }
+        });
+      }
 
       const remaining = inst.order.installments.filter((i) => i.id !== inst.id && !i.paidAt && !ids.includes(i.id)).length;
       if (remaining === 0) {

@@ -190,21 +190,24 @@ export async function adjustStockAction(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     const variant = await tx.productVariant.findUniqueOrThrow({
       where: { id: parsed.variantId },
-      select: { stockQuantity: true }
+      select: { stockQuantity: true, costPrice: true, sku: true }
     });
 
     let newQuantity: number;
+    let lostQty = 0; // quantidade que saiu sem ser venda/retorno
 
     if (parsed.type === "ADJUSTMENT") {
-      // ADJUSTMENT define o estoque para o valor exato informado
       newQuantity = parsed.quantity;
+      // se ajuste reduziu o estoque, registra a perda no financeiro
+      lostQty = Math.max(0, variant.stockQuantity - parsed.quantity);
     } else if (parsed.type === "OUT") {
       if (variant.stockQuantity < parsed.quantity) {
         throw new Error("Estoque insuficiente para esta movimentação.");
       }
       newQuantity = variant.stockQuantity - parsed.quantity;
+      lostQty = parsed.quantity;
     } else {
-      // IN ou RETURN: soma
+      // IN ou RETURN: soma, sem impacto financeiro de perda
       newQuantity = variant.stockQuantity + parsed.quantity;
     }
 
@@ -222,10 +225,28 @@ export async function adjustStockAction(formData: FormData) {
         reason: parsed.reason
       }
     });
+
+    // saída ou ajuste para baixo: registra despesa de perda/baixa de estoque
+    if (lostQty > 0) {
+      const lossAmount = Math.round(Number(variant.costPrice) * lostQty * 100) / 100;
+      if (lossAmount > 0) {
+        await tx.financialTransaction.create({
+          data: {
+            type: "EXPENSE",
+            title: `Baixa de estoque - ${variant.sku}`,
+            category: "Perda de estoque",
+            amount: lossAmount,
+            paidAt: new Date(),
+            notes: parsed.reason
+          }
+        });
+      }
+    }
   });
 
   revalidatePath("/produtos");
   revalidatePath("/movimentacoes");
+  revalidatePath("/financeiro");
   revalidatePath("/vendas");
   revalidatePath("/");
 }
