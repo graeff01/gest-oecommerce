@@ -522,6 +522,102 @@ export async function returnOrderItemAction(
   return { success: true };
 }
 
+export async function updateInstallmentsAction(
+  _prev: { error?: string; success?: boolean } | null,
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  try {
+    await requireRole(["ADMIN", "SALES", "FINANCE"]);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Acesso negado." };
+  }
+
+  const raw = Object.fromEntries(formData);
+  const orderId = z.string().min(1).safeParse(raw.orderId);
+  if (!orderId.success) return { error: "Pedido inválido." };
+
+  const installmentsRaw = z.string().min(1).safeParse(raw.installments);
+  if (!installmentsRaw.success) return { error: "Parcelas inválidas." };
+
+  const newInstallments = z.array(z.object({
+    dueDate: z.string().min(1),
+    amount: z.coerce.number().min(0.01)
+  })).min(1).safeParse(JSON.parse(installmentsRaw.data));
+  if (!newInstallments.success) return { error: "Formato de parcelas inválido." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: orderId.data },
+        include: { installments: true }
+      });
+
+      if (order.paymentMethod !== "CREDIARIO") throw new Error("Pedido não é crediário.");
+      if (order.status === "CANCELED") throw new Error("Pedido cancelado.");
+
+      // remove unpaid installments + their pending financial entries
+      const unpaid = order.installments.filter((i) => i.paidAt === null);
+      const paidCount = order.installments.length - unpaid.length;
+
+      const pendingTitles = unpaid.map((i) => `Parcela ${i.sequence}/${i.totalCount} - ${order.code}`);
+      if (pendingTitles.length > 0) {
+        await tx.financialTransaction.deleteMany({
+          where: { title: { in: pendingTitles }, category: "Crediário", paidAt: null }
+        });
+        await tx.installment.deleteMany({ where: { id: { in: unpaid.map((i) => i.id) } } });
+      }
+
+      const items = newInstallments.data;
+      const totalCount = paidCount + items.length;
+
+      // recreate unpaid installments starting after paid ones
+      for (let i = 0; i < items.length; i++) {
+        const seq = paidCount + i + 1;
+        const amount = Math.round(items[i].amount * 100) / 100;
+        const dueDate = new Date(items[i].dueDate);
+
+        await tx.installment.create({
+          data: {
+            orderId: orderId.data,
+            sequence: seq,
+            totalCount,
+            dueDate,
+            amount
+          }
+        });
+
+        await tx.financialTransaction.create({
+          data: {
+            type: "REVENUE",
+            title: `Parcela ${seq}/${totalCount} - ${order.code}`,
+            category: "Crediário",
+            amount,
+            dueDate,
+            paidAt: null
+          }
+        });
+      }
+
+      // update totalCount on already-paid installments if count changed
+      if (paidCount > 0 && totalCount !== order.installments[0]?.totalCount) {
+        await tx.installment.updateMany({
+          where: { orderId: orderId.data, paidAt: { not: null } },
+          data: { totalCount }
+        });
+      }
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao atualizar parcelas." };
+  }
+
+  revalidatePath("/vendas");
+  revalidatePath("/credario");
+  revalidatePath("/financeiro");
+  revalidatePath("/clientes");
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function payManyInstallmentsAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "SALES", "FINANCE"]);
   const raw = Object.fromEntries(formData);

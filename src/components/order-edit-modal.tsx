@@ -2,11 +2,20 @@
 
 import { useActionState, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Pencil, X, CheckCircle2, AlertTriangle } from "lucide-react";
-import { updateOrderAction } from "@/app/(app)/actions/orders";
+import { Pencil, X, CheckCircle2, AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { updateOrderAction, updateInstallmentsAction } from "@/app/(app)/actions/orders";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 
 type Customer = { id: string; name: string };
+
+type Installment = {
+  id: string;
+  sequence: number;
+  totalCount: number;
+  dueDate: string; // ISO string
+  amount: number;
+  paidAt: string | null;
+};
 
 type Props = {
   order: {
@@ -23,6 +32,7 @@ type Props = {
   };
   customers?: Customer[];
   customerId?: string | null;
+  installments?: Installment[];
 };
 
 const STATUS_OPTIONS = [
@@ -33,7 +43,6 @@ const STATUS_OPTIONS = [
   { value: "DELIVERED", label: "Entregue" },
 ];
 
-// converte ISO → "YYYY-MM-DDTHH:mm" para datetime-local
 function toDatetimeLocal(iso: string) {
   try {
     const d = new Date(iso);
@@ -44,7 +53,137 @@ function toDatetimeLocal(iso: string) {
   }
 }
 
-export function OrderEditModal({ order, customers = [], customerId }: Props) {
+function toDateInput(iso: string) {
+  try {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  } catch {
+    return "";
+  }
+}
+
+type EditableInstallment = { dueDate: string; amount: string };
+
+function InstallmentsEditor({
+  paidInstallments,
+  initialUnpaid,
+  orderId,
+  onSuccess
+}: {
+  paidInstallments: Installment[];
+  initialUnpaid: Installment[];
+  orderId: string;
+  onSuccess: () => void;
+}) {
+  const [rows, setRows] = useState<EditableInstallment[]>(
+    initialUnpaid.length > 0
+      ? initialUnpaid.map((i) => ({ dueDate: toDateInput(i.dueDate), amount: String(i.amount) }))
+      : [{ dueDate: "", amount: "" }]
+  );
+  const [state, action, pending] = useActionState(updateInstallmentsAction, null);
+
+  if (state?.success) {
+    onSuccess();
+    return null;
+  }
+
+  function addRow() {
+    setRows((r) => [...r, { dueDate: "", amount: "" }]);
+  }
+
+  function removeRow(index: number) {
+    setRows((r) => r.filter((_, i) => i !== index));
+  }
+
+  function updateRow(index: number, field: keyof EditableInstallment, value: string) {
+    setRows((r) => r.map((row, i) => i === index ? { ...row, [field]: value } : row));
+  }
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[0.78rem] font-semibold uppercase tracking-wide text-muted">Parcelas</span>
+        <span className="text-[0.74rem] text-muted">{paidInstallments.length} paga(s)</span>
+      </div>
+
+      {/* paid — read-only */}
+      {paidInstallments.map((inst) => (
+        <div key={inst.id} className="flex items-center gap-2 rounded-xl border border-border bg-surface-2/40 px-3 py-2 opacity-60">
+          <span className="min-w-[1.6rem] text-center text-[0.75rem] font-bold text-muted">{inst.sequence}</span>
+          <span className="flex-1 text-[0.82rem] text-fg">
+            {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(inst.dueDate))}
+          </span>
+          <span className="text-[0.82rem] font-semibold text-success">
+            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(inst.amount)}
+          </span>
+          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[0.7rem] font-semibold text-success">Paga</span>
+        </div>
+      ))}
+
+      {/* unpaid — editable */}
+      <form action={action} className="grid gap-2">
+        <input type="hidden" name="orderId" value={orderId} />
+        <input type="hidden" name="installments" value={JSON.stringify(rows.map((r) => ({ dueDate: r.dueDate, amount: r.amount })))} />
+
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="min-w-[1.6rem] text-center text-[0.75rem] font-bold text-muted">
+              {paidInstallments.length + i + 1}
+            </span>
+            <input
+              type="date"
+              className="field h-8 flex-1 text-xs"
+              value={row.dueDate}
+              onChange={(e) => updateRow(i, "dueDate", e.target.value)}
+              required
+            />
+            <input
+              type="number"
+              className="field h-8 w-24 text-xs"
+              min="0.01"
+              step="0.01"
+              placeholder="0,00"
+              value={row.amount}
+              onChange={(e) => updateRow(i, "amount", e.target.value)}
+              required
+            />
+            {rows.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeRow(i)}
+                className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-danger-soft hover:text-danger"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={addRow}
+          className="flex items-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-1.5 text-[0.78rem] text-muted transition hover:border-primary hover:text-primary"
+        >
+          <Plus size={12} /> Adicionar parcela
+        </button>
+
+        {state?.error && (
+          <div className="flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-3 py-2 text-[0.82rem] font-medium text-danger">
+            <AlertTriangle size={13} className="shrink-0" />
+            {state.error}
+          </div>
+        )}
+
+        <button className="button-primary h-8 text-sm" disabled={pending}>
+          {pending ? "Salvando parcelas..." : "Salvar parcelas"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export function OrderEditModal({ order, customers = [], customerId, installments = [] }: Props) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(updateOrderAction, null);
 
@@ -52,6 +191,10 @@ export function OrderEditModal({ order, customers = [], customerId }: Props) {
 
   const canEdit = order.status !== "CANCELED";
   if (!canEdit) return null;
+
+  const isCrediario = order.paymentMethod === "CREDIARIO";
+  const paidInstallments = installments.filter((i) => i.paidAt !== null);
+  const unpaidInstallments = installments.filter((i) => i.paidAt === null);
 
   const paymentMethods = Object.entries(PAYMENT_METHOD_LABELS);
 
@@ -226,6 +369,18 @@ export function OrderEditModal({ order, customers = [], customerId }: Props) {
                     </button>
                   </div>
                 </form>
+
+                {/* installments section — only for crediário */}
+                {isCrediario && (
+                  <div className="border-t border-border px-5 pb-5 pt-4">
+                    <InstallmentsEditor
+                      paidInstallments={paidInstallments}
+                      initialUnpaid={unpaidInstallments}
+                      orderId={order.id}
+                      onSuccess={() => setOpen(false)}
+                    />
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

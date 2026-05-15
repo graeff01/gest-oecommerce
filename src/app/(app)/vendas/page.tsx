@@ -126,6 +126,14 @@ export default async function SalesPage() {
                             }}
                             customers={customers.map((c) => ({ id: c.id, name: c.name }))}
                             customerId={order.customerId}
+                            installments={order.installments.map((i) => ({
+                              id: i.id,
+                              sequence: i.sequence,
+                              totalCount: i.totalCount,
+                              dueDate: i.dueDate.toISOString(),
+                              amount: Number(i.amount),
+                              paidAt: i.paidAt ? i.paidAt.toISOString() : null
+                            }))}
                           />
                           {/* PDF Receipt */}
                           <a
