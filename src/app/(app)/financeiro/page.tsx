@@ -42,7 +42,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const balance = revenue - expenses;
 
   return (
-    <AnimatedShell className="flex min-h-0 flex-col gap-4">
+    <AnimatedShell className="grid gap-6">
       <PageHeader
         title="Financeiro"
         description="Controle receitas, gastos, contas pagas, contas abertas e categorias do caixa."
@@ -75,13 +75,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </div>
       </form>
 
-      <section className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <div className="overflow-y-auto rounded-2xl">
+      <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
+        <div className="xl:sticky xl:top-4">
           <FinanceForm categories={financeCategories} />
         </div>
 
-        <div className="min-h-0">
-          <div className="table-shell h-full">
+        <div>
+          <div className="table-shell max-h-[28rem] lg:max-h-[36rem] xl:max-h-[calc(100vh-13rem)]">
             <table className="data-table">
               <thead>
                 <tr>
