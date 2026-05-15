@@ -35,10 +35,10 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 export default async function MovimentacoesPage({
   searchParams
 }: {
-  searchParams: Promise<{ page?: string; product?: string }>;
+  searchParams: Promise<{ page?: string; product?: string; type?: string }>;
 }) {
   await connection();
-  const { page: pageParam, product: productFilter } = await searchParams;
+  const { page: pageParam, product: productFilter, type: typeFilter } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
   const products = await prisma.product.findMany({
@@ -53,7 +53,11 @@ export default async function MovimentacoesPage({
       })).map((v) => v.id)
     : undefined;
 
-  const where = variantIds ? { variantId: { in: variantIds } } : {};
+  const validTypes = ["IN", "OUT", "SALE", "RETURN", "ADJUSTMENT"];
+  const where = {
+    ...(variantIds ? { variantId: { in: variantIds } } : {}),
+    ...(typeFilter && validTypes.includes(typeFilter) ? { type: typeFilter as "IN" | "OUT" | "SALE" | "RETURN" | "ADJUSTMENT" } : {})
+  };
 
   const [movements, total] = await Promise.all([
     prisma.stockMovement.findMany({
@@ -86,9 +90,20 @@ export default async function MovimentacoesPage({
             ))}
           </select>
         </label>
+        <label className="label w-full flex-1 sm:min-w-[160px] sm:w-auto">
+          Tipo
+          <select className="field" name="type" defaultValue={typeFilter ?? ""}>
+            <option value="">Todos os tipos</option>
+            <option value="SALE">Venda</option>
+            <option value="IN">Entrada</option>
+            <option value="OUT">Saída</option>
+            <option value="RETURN">Devolução</option>
+            <option value="ADJUSTMENT">Ajuste</option>
+          </select>
+        </label>
         <div className="flex w-full gap-2 sm:w-auto sm:self-end">
           <button type="submit" className="button-primary h-10 flex-1 px-4 sm:flex-none">Filtrar</button>
-          {productFilter && (
+          {(productFilter || typeFilter) && (
             <a href="/movimentacoes" className="flex h-10 flex-1 items-center justify-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg sm:flex-none">Limpar</a>
           )}
         </div>

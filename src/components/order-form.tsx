@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { AlertTriangle, Package, Plus, ReceiptText, Trash2 } from "lucide-react";
+import { useState, useMemo, useActionState, useEffect, useRef } from "react";
+import { AlertTriangle, CheckCircle2, Package, Plus, ReceiptText, Trash2 } from "lucide-react";
 import { createOrderAction } from "@/app/(app)/actions/orders";
 import { money } from "@/lib/format";
 
@@ -29,6 +29,21 @@ function nextMonthDate(base: Date, plusMonths: number): string {
 }
 
 export function OrderForm({ customers, variants }: { customers: Customer[]; variants: Variant[] }) {
+  const [state, formAction, isPending] = useActionState(createOrderAction, null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // limpa o carrinho após sucesso
+  useEffect(() => {
+    if (state?.success) {
+      setCart([]);
+      setDiscount("");
+      setFee("");
+      setPaymentMethod("PIX");
+      setDueDates([]);
+      formRef.current?.reset();
+    }
+  }, [state]);
+
   const [paymentMethod, setPaymentMethod] = useState("PIX");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState(variants[0]?.id ?? "");
@@ -181,7 +196,8 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
 
   return (
     <form
-      action={createOrderAction}
+      ref={formRef}
+      action={formAction}
       onSubmit={handleSubmit}
       className="surface-card grid gap-4 p-5"
     >
@@ -487,8 +503,22 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
         Observações<textarea className="field min-h-16" name="notes" />
       </label>
 
-      <button className="button-primary" disabled={cart.length === 0}>
-        Registrar venda {cart.length > 0 ? `· ${money(orderTotal)}` : ""}
+      {state?.error && (
+        <div className="flex items-center gap-2 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-[0.84rem] text-danger">
+          <AlertTriangle size={14} className="shrink-0" />
+          {state.error}
+        </div>
+      )}
+
+      {state?.success && (
+        <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success-soft px-4 py-3 text-[0.84rem] text-success">
+          <CheckCircle2 size={14} className="shrink-0" />
+          Venda registrada com sucesso!
+        </div>
+      )}
+
+      <button className="button-primary" disabled={cart.length === 0 || isPending}>
+        {isPending ? "Registrando..." : `Registrar venda${cart.length > 0 ? ` · ${money(orderTotal)}` : ""}`}
       </button>
     </form>
   );

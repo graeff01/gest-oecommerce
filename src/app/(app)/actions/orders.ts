@@ -8,8 +8,16 @@ import { prisma } from "@/lib/prisma";
 
 const decimal = z.coerce.number().min(0);
 
-export async function createOrderAction(formData: FormData) {
-  const user = await requireRole(["ADMIN", "SALES", "FINANCE"]);
+export async function createOrderAction(
+  _prev: { error?: string; success?: boolean } | null,
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  let user: Awaited<ReturnType<typeof requireRole>>;
+  try {
+    user = await requireRole(["ADMIN", "SALES", "FINANCE"]);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Acesso negado." };
+  }
 
   const raw = Object.fromEntries(formData);
 
@@ -39,10 +47,11 @@ export async function createOrderAction(formData: FormData) {
   const isCrediario = parsed.paymentMethod === "CREDIARIO";
 
   if (isCrediario) {
-    if (!parsed.customerId) throw new Error("Crediário exige selecionar um cliente.");
-    if (!dueDates || dueDates.length === 0) throw new Error("Informe as datas de vencimento das parcelas.");
+    if (!parsed.customerId) return { error: "Crediário exige selecionar um cliente." };
+    if (!dueDates || dueDates.length === 0) return { error: "Informe as datas de vencimento das parcelas." };
   }
 
+  try {
   await prisma.$transaction(async (tx) => {
     const catalogItems = cartItems.filter((i) => i.variantId);
     const manualItems  = cartItems.filter((i) => !i.variantId);
@@ -64,7 +73,8 @@ export async function createOrderAction(formData: FormData) {
     }
     // itens avulsos: usa o preço informado no form
     for (const item of manualItems) {
-      subtotal += (item.unitPrice ?? 0) * item.quantity;
+      if (!item.unitPrice || item.unitPrice <= 0) throw new Error(`Item "${item.label ?? "avulso"}" precisa de um preço maior que zero.`);
+      subtotal += item.unitPrice * item.quantity;
     }
 
     const total = subtotal - parsed.discount + parsed.fee;
@@ -170,13 +180,18 @@ export async function createOrderAction(formData: FormData) {
       data: { userId: user.id, action: "CREATE_ORDER", entity: "Order", entityId: order.id }
     });
   });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao registrar venda. Tente novamente." };
+  }
 
   revalidatePath("/vendas");
   revalidatePath("/financeiro");
   revalidatePath("/produtos");
   revalidatePath("/clientes");
+  revalidatePath("/credario");
   revalidatePath("/movimentacoes");
   revalidatePath("/");
+  return { success: true };
 }
 
 export async function cancelOrderAction(formData: FormData) {
@@ -213,12 +228,15 @@ export async function cancelOrderAction(formData: FormData) {
     }
 
     if (order.paymentMethod === "CREDIARIO") {
-      // remove todos os lançamentos previstos (paidAt null) das parcelas
-      await tx.financialTransaction.deleteMany({
-        where: { title: { startsWith: `Parcela ` }, category: "Crediário", paidAt: null,
-          AND: [{ title: { contains: order.code } }]
-        }
-      });
+      // remove lançamentos previstos filtrando pelo código do pedido (match exato no título)
+      const pendingTitles = order.installments
+        .filter((i) => i.paidAt === null)
+        .map((i) => `Parcela ${i.sequence}/${i.totalCount} - ${order.code}`);
+      if (pendingTitles.length > 0) {
+        await tx.financialTransaction.deleteMany({
+          where: { title: { in: pendingTitles }, category: "Crediário", paidAt: null }
+        });
+      }
 
       // estorna parcelas que já foram pagas
       const paidInstallments = order.installments.filter((i) => i.paidAt !== null);
@@ -249,6 +267,7 @@ export async function cancelOrderAction(formData: FormData) {
   revalidatePath("/vendas");
   revalidatePath("/clientes");
   revalidatePath("/financeiro");
+  revalidatePath("/credario");
   revalidatePath("/produtos");
   revalidatePath("/");
 }
@@ -403,6 +422,7 @@ export async function payInstallmentAction(formData: FormData) {
   revalidatePath("/clientes");
   revalidatePath("/vendas");
   revalidatePath("/financeiro");
+  revalidatePath("/credario");
   revalidatePath("/");
 }
 
@@ -544,5 +564,6 @@ export async function payManyInstallmentsAction(formData: FormData) {
   revalidatePath("/clientes");
   revalidatePath("/vendas");
   revalidatePath("/financeiro");
+  revalidatePath("/credario");
   revalidatePath("/");
 }

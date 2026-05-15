@@ -1,4 +1,5 @@
-import { Download, Pencil, UsersRound, X } from "lucide-react";
+import { Download, Pencil, UsersRound } from "lucide-react";
+import { DeleteButton } from "@/components/delete-button";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -94,9 +95,7 @@ export default async function CustomersPage() {
                       </button>
                       <form action={deleteCustomerAction}>
                         <input type="hidden" name="id" value={c.id} />
-                        <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">
-                          <X size={13} />
-                        </button>
+                        <DeleteButton confirmMessage={`Excluir o cliente "${c.name}"? Esta ação não pode ser desfeita.`} />
                       </form>
                     </div>
                     <div

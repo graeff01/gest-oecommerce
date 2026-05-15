@@ -1,4 +1,5 @@
 import { Download, MessageCircle, Printer } from "lucide-react";
+import { DeleteButton } from "@/components/delete-button";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { OrderDetailModal } from "@/components/order-detail-modal";
@@ -194,7 +195,7 @@ export default async function SalesPage() {
                               </form>
                               <form action={cancelOrderAction}>
                                 <input type="hidden" name="id" value={order.id} />
-                                <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">✕</button>
+                                <DeleteButton confirmMessage={`Cancelar o pedido ${order.code}? Esta ação não pode ser desfeita.`} />
                               </form>
                             </div>
                           ) : null}

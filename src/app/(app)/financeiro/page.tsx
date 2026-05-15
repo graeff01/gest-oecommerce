@@ -1,10 +1,11 @@
 import { Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { DeleteButton } from "@/components/delete-button";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { FinanceForm } from "@/components/finance-form";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
-import { date, money } from "@/lib/format";
+import { date, money, startOfDayBRT, endOfDayBRT } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings, DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
 import { deleteFinancialTransactionAction } from "../actions/finance";
@@ -15,8 +16,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   const dateFilter = from || to ? {
     createdAt: {
-      ...(from ? { gte: new Date(from) } : {}),
-      ...(to ? { lte: new Date(to + "T23:59:59.999Z") } : {})
+      ...(from ? { gte: startOfDayBRT(from) } : {}),
+      ...(to ? { lte: endOfDayBRT(to) } : {})
     }
   } : {};
 
@@ -113,7 +114,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                       <td>
                         <form action={deleteFinancialTransactionAction}>
                           <input type="hidden" name="id" value={item.id} />
-                          <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">Excluir</button>
+                          <DeleteButton label="Excluir" confirmMessage="Excluir este lançamento financeiro? Esta ação não pode ser desfeita." />
                         </form>
                       </td>
                     </tr>

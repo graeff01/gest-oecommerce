@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
-import { money } from "@/lib/format";
+import { money, startOfDayBRT, endOfDayBRT } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 function monthRange(offset: number) {
@@ -19,8 +19,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   const dateFilter = from || to ? {
     createdAt: {
-      ...(from ? { gte: new Date(from) } : {}),
-      ...(to ? { lte: new Date(to + "T23:59:59.999Z") } : {})
+      ...(from ? { gte: startOfDayBRT(from) } : {}),
+      ...(to ? { lte: endOfDayBRT(to) } : {})
     }
   } : {};
 

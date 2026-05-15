@@ -1,4 +1,5 @@
-import { Building2, Pencil, X } from "lucide-react";
+import { Building2, Pencil } from "lucide-react";
+import { DeleteButton } from "@/components/delete-button";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -69,9 +70,7 @@ export default async function SuppliersPage() {
                       </button>
                       <form action={deleteSupplierAction}>
                         <input type="hidden" name="id" value={s.id} />
-                        <button type="submit" className="text-[0.74rem] text-muted transition hover:text-danger">
-                          <X size={13} />
-                        </button>
+                        <DeleteButton confirmMessage={`Excluir o fornecedor "${s.name}"? Esta ação não pode ser desfeita.`} />
                       </form>
                     </div>
 
