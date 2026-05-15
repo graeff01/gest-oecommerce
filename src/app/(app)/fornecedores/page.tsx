@@ -6,9 +6,20 @@ import { PageHeader } from "@/components/page-header";
 import { prisma } from "@/lib/prisma";
 import { createSupplierAction, updateSupplierAction, deleteSupplierAction } from "../actions/suppliers";
 
-export default async function SuppliersPage() {
+export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await connection();
+  const { q } = await searchParams;
+  const search = q?.trim() ?? "";
+
   const suppliers = await prisma.supplier.findMany({
+    where: search ? {
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { contact: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
+        { document: { contains: search, mode: "insensitive" } }
+      ]
+    } : undefined,
     include: { purchases: true },
     orderBy: { createdAt: "desc" }
   });
@@ -41,7 +52,14 @@ export default async function SuppliersPage() {
           <button className="button-primary">Cadastrar fornecedor</button>
         </form>
 
-        <div className="table-shell max-h-[32rem] xl:max-h-[calc(100vh-12rem)]">
+        <div className="grid gap-3">
+          <form method="GET" className="flex gap-2">
+            <input className="field flex-1" name="q" type="search" placeholder="Buscar por nome, contato, telefone ou CNPJ..." defaultValue={search} />
+            <button type="submit" className="button-primary px-4">Buscar</button>
+            {search && <a href="/fornecedores" className="flex items-center rounded-xl border border-border px-3 text-sm text-muted hover:text-fg">Limpar</a>}
+          </form>
+
+          <div className="table-shell max-h-[32rem] xl:max-h-[calc(100vh-16rem)]">
           <table className="data-table">
             <thead>
               <tr>
@@ -103,6 +121,7 @@ export default async function SuppliersPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
     </AnimatedShell>

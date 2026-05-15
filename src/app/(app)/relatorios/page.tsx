@@ -1,4 +1,4 @@
-import { BarChart3, PiggyBank, TrendingUp, Warehouse } from "lucide-react";
+import { BarChart3, Download, PiggyBank, TrendingUp, Warehouse } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { MetricCard } from "@/components/metric-card";
@@ -91,6 +91,28 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         title="Relatórios"
         description="Resumo gerencial de vendas, margem, estoque parado e performance por produto."
       />
+      {/* export buttons */}
+      <div className="flex flex-wrap gap-2">
+        {(["products", "channels", "stock"] as const).map((sheet) => {
+          const labels = { products: "Produtos mais vendidos", channels: "Por canal de venda", stock: "Estoque atual" };
+          const params = new URLSearchParams();
+          params.set("sheet", sheet);
+          if (from) params.set("from", from);
+          if (to) params.set("to", to);
+          return (
+            <a
+              key={sheet}
+              href={`/api/export/reports?${params.toString()}`}
+              download
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted transition hover:text-fg"
+            >
+              <Download size={14} />
+              {labels[sheet]}
+            </a>
+          );
+        })}
+      </div>
+
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
         <label className="label w-full min-w-[140px] flex-1 sm:w-auto">
           De<input className="field" name="from" type="date" defaultValue={from ?? ""} />

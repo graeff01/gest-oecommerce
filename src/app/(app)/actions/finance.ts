@@ -59,16 +59,75 @@ export async function deleteFinancialTransactionAction(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function createPurchaseAction(formData: FormData) {
+export async function cancelPurchaseAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "STOCK"]);
-  const parsed = z.object({
+  const { id } = z.object({ id: z.string().min(1) }).parse(Object.fromEntries(formData));
+
+  await prisma.$transaction(async (tx) => {
+    const purchase = await tx.purchase.findUniqueOrThrow({
+      where: { id },
+      include: { items: true }
+    });
+
+    // devolve estoque de cada item
+    for (const item of purchase.items) {
+      await tx.productVariant.update({
+        where: { id: item.variantId },
+        data: { stockQuantity: { decrement: item.quantity } }
+      });
+      await tx.stockMovement.create({
+        data: {
+          variantId: item.variantId,
+          userId: user.id,
+          type: "OUT",
+          quantity: item.quantity,
+          reason: `Cancelamento compra ${purchase.code}`
+        }
+      });
+    }
+
+    // remove lançamento financeiro correspondente
+    await tx.financialTransaction.deleteMany({
+      where: { title: `Compra ${purchase.code}`, category: "Mercadorias" }
+    });
+
+    await tx.purchase.delete({ where: { id } });
+
+    await tx.auditLog.create({
+      data: { userId: user.id, action: "CANCEL_PURCHASE", entity: "Purchase", entityId: id }
+    });
+  });
+
+  revalidatePath("/compras");
+  revalidatePath("/financeiro");
+  revalidatePath("/produtos");
+  revalidatePath("/movimentacoes");
+  revalidatePath("/");
+}
+
+export async function createPurchaseAction(
+  _prev: { error?: string; success?: boolean } | null,
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  let user: Awaited<ReturnType<typeof requireRole>>;
+  try {
+    user = await requireRole(["ADMIN", "STOCK"]);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Acesso negado." };
+  }
+
+  const result = z.object({
     supplierId: z.string().optional(),
     variantId: z.string().min(1),
     quantity: z.coerce.number().int().min(1),
     unitCost: decimal,
     freight: decimal.default(0)
-  }).parse(Object.fromEntries(formData));
+  }).safeParse(Object.fromEntries(formData));
 
+  if (!result.success) return { error: result.error.errors[0].message };
+  const parsed = result.data;
+
+  try {
   await prisma.$transaction(async (tx) => {
     const code = `CMP-${randomUUID().slice(0, 8).toUpperCase()}`;
     const total = parsed.unitCost * parsed.quantity + parsed.freight;
@@ -107,6 +166,9 @@ export async function createPurchaseAction(formData: FormData) {
       data: { userId: user.id, action: "CREATE_PURCHASE", entity: "Purchase", entityId: purchase.id }
     });
   });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao registrar compra. Tente novamente." };
+  }
 
   revalidatePath("/compras");
   revalidatePath("/financeiro");
@@ -114,4 +176,5 @@ export async function createPurchaseAction(formData: FormData) {
   revalidatePath("/vendas");
   revalidatePath("/movimentacoes");
   revalidatePath("/");
+  return { success: true };
 }

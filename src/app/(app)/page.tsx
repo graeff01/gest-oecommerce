@@ -115,8 +115,10 @@ export default async function DashboardPage() {
                 <tbody>
                   {data.recentOrders.length ? (
                     data.recentOrders.slice(0, 3).map((order) => (
-                      <tr key={order.id}>
-                        <td className="font-semibold text-fg">{order.code}</td>
+                      <tr key={order.id} className="cursor-pointer hover:bg-surface-2/40 transition" onClick={() => {}}>
+                        <td className="font-semibold text-fg">
+                          <a href="/vendas" className="hover:text-primary transition">{order.code}</a>
+                        </td>
                         <td>{order.customer?.name ?? "Venda avulsa"}</td>
                         <td>
                           <span className="status-pill">{ORDER_STATUS_LABELS[order.status] ?? order.status}</span>

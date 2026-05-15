@@ -1,4 +1,5 @@
 import { Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Pagination } from "@/components/pagination";
 import { DeleteButton } from "@/components/delete-button";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
@@ -10,9 +11,12 @@ import { prisma } from "@/lib/prisma";
 import { getStoreSettings, DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
 import { deleteFinancialTransactionAction } from "../actions/finance";
 
-export default async function FinancePage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+const FIN_PAGE_SIZE = 30;
+
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; category?: string; type?: string; page?: string }> }) {
   await connection();
-  const { from, to } = await searchParams;
+  const { from, to, category, type, page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   const dateFilter = from || to ? {
     createdAt: {
@@ -26,15 +30,31 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     ? storeSettings.financeCategories
     : DEFAULT_FINANCE_CATEGORIES;
 
-  const [totals, transactions] = await Promise.all([
+  const txFilter = {
+    ...dateFilter,
+    ...(category ? { category } : {}),
+    ...(type === "REVENUE" || type === "EXPENSE" ? { type: type as "REVENUE" | "EXPENSE" } : {})
+  };
+
+  // categories list for filter dropdown
+  const allCategories = await prisma.financialTransaction.findMany({
+    select: { category: true },
+    distinct: ["category"],
+    orderBy: { category: "asc" }
+  });
+
+  const [totals, totalCount, transactions] = await Promise.all([
     prisma.financialTransaction.groupBy({
       by: ["type"],
       where: dateFilter,
       _sum: { amount: true }
     }),
+    prisma.financialTransaction.count({ where: txFilter }),
     prisma.financialTransaction.findMany({
-      where: dateFilter,
-      orderBy: { createdAt: "desc" }
+      where: txFilter,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * FIN_PAGE_SIZE,
+      take: FIN_PAGE_SIZE
     })
   ]);
 
@@ -62,15 +82,32 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </section>
 
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
-        <label className="label w-full min-w-[140px] flex-1 sm:w-auto">
+        <label className="label w-full min-w-[120px] flex-1 sm:w-auto">
           De<input className="field" name="from" type="date" defaultValue={from ?? ""} />
         </label>
-        <label className="label w-full min-w-[140px] flex-1 sm:w-auto">
+        <label className="label w-full min-w-[120px] flex-1 sm:w-auto">
           Até<input className="field" name="to" type="date" defaultValue={to ?? ""} />
+        </label>
+        <label className="label w-full min-w-[140px] flex-1 sm:w-auto">
+          Tipo
+          <select className="field" name="type" defaultValue={type ?? ""}>
+            <option value="">Todos</option>
+            <option value="REVENUE">Receita</option>
+            <option value="EXPENSE">Gasto</option>
+          </select>
+        </label>
+        <label className="label w-full min-w-[160px] flex-1 sm:w-auto">
+          Categoria
+          <select className="field" name="category" defaultValue={category ?? ""}>
+            <option value="">Todas</option>
+            {allCategories.map((c) => (
+              <option key={c.category} value={c.category}>{c.category}</option>
+            ))}
+          </select>
         </label>
         <div className="flex w-full gap-2 sm:w-auto sm:self-end">
           <button type="submit" className="button-primary h-10 flex-1 px-4 sm:flex-none">Filtrar</button>
-          {(from || to) && (
+          {(from || to || category || type) && (
             <a href="/financeiro" className="flex h-10 flex-1 items-center justify-center rounded-xl border border-border px-4 text-sm text-muted hover:text-fg sm:flex-none">Limpar</a>
           )}
         </div>
@@ -129,6 +166,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
               </tbody>
             </table>
           </div>
+          <Pagination total={totalCount} page={page} pageSize={FIN_PAGE_SIZE} />
         </div>
       </section>
     </AnimatedShell>

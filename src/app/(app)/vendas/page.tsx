@@ -1,5 +1,6 @@
 import { Download, MessageCircle, Printer } from "lucide-react";
 import { DeleteButton } from "@/components/delete-button";
+import { Pagination } from "@/components/pagination";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { OrderDetailModal } from "@/components/order-detail-modal";
@@ -12,6 +13,8 @@ import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { cancelOrderAction, updateOrderStatusAction } from "../actions/orders";
 
+const PAGE_SIZE = 20;
+
 function buildOrderWhatsAppUrl(name: string, phone: string | null | undefined, code: string, status: string, total: number): string | null {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
@@ -22,17 +25,22 @@ function buildOrderWhatsAppUrl(name: string, phone: string | null | undefined, c
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
 
-export default async function SalesPage() {
+export default async function SalesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await connection();
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
-  const [orders, customers, variants] = await Promise.all([
+  const [total, orders, customers, variants] = await Promise.all([
+    prisma.order.count(),
     prisma.order.findMany({
       include: {
         customer: true,
         items: { include: { variant: { include: { product: true } } } },
         installments: { orderBy: { sequence: "asc" } }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE
     }),
     prisma.customer.findMany({ orderBy: { name: "asc" } }),
     prisma.productVariant.findMany({
@@ -222,6 +230,7 @@ export default async function SalesPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={total} page={page} pageSize={PAGE_SIZE} />
         </div>
       </section>
     </AnimatedShell>
