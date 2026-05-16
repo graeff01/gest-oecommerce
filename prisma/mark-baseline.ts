@@ -22,6 +22,20 @@ async function main() {
     )
   `);
 
+  const legacyTables = await prisma.$queryRaw<{ exists: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name IN ('User', 'StoreSettings')
+    ) AS "exists"
+  `;
+
+  if (!legacyTables[0]?.exists) {
+    console.log("✓ Empty database detected — baseline not marked; migrations will create schema.");
+    return;
+  }
+
   const existing = await prisma.$queryRaw<{ migration_name: string }[]>`
     SELECT migration_name FROM "_prisma_migrations" WHERE migration_name = '20260513000000_init'
   `;
