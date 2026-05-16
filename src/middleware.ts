@@ -17,6 +17,21 @@ const PUBLIC_PATHS = ["/login", "/setup", "/api/admin"];
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  if (process.env.ADMIN_MASTER_ONLY === "1") {
+    const isAdmin = pathname.startsWith("/admin");
+    const isAdminApi = pathname.startsWith("/api/admin");
+    const isAsset =
+      pathname.startsWith("/_next") ||
+      pathname.startsWith("/favicon") ||
+      pathname.includes(".");
+
+    if (isAdmin || isAdminApi || isAsset) {
+      return NextResponse.next();
+    }
+
+    return NextResponse.redirect(new URL("/admin", req.url));
+  }
+
   // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
