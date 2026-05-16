@@ -287,8 +287,11 @@ async function fetchDatabaseClientConfigs(): Promise<ClientConfig[]> {
 export async function fetchAllClients(): Promise<ClientSnapshot[]> {
   const databaseClients = await fetchDatabaseClientConfigs();
   const envClients = envClientsConfig.map((client) => ({ ...client, source: "env" as const }));
-  const configs = databaseClients.length ? databaseClients : envClients;
+  const databaseKeys = new Set(databaseClients.map((client) => client.key));
+  const configs = [
+    ...databaseClients,
+    ...envClients.filter((client) => !databaseKeys.has(client.key))
+  ];
   if (configs.length === 0) return [];
   return Promise.all(configs.map(fetchClientSnapshot));
 }
-
