@@ -135,6 +135,8 @@ body {
 
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; }
+input, select, textarea { max-width: 100%; }
+form, label, fieldset, .surface-card { min-width: 0; }
 
 /* tipografia hierárquica */
 h1, h2, h3, h4, h5 {
@@ -216,6 +218,8 @@ h1, h2, h3, h4, h5 {
 @layer components {
   .field {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     border-radius: 0.75rem;
     border: 1px solid rgb(var(--border));
     background: rgb(var(--surface));
@@ -246,6 +250,7 @@ h1, h2, h3, h4, h5 {
 .label {
   display: grid;
   gap: 0.4rem;
+  min-width: 0;
   color: rgb(var(--muted));
   font-size: 0.78rem;
   font-weight: 600;
@@ -512,9 +517,17 @@ h1, h2, h3, h4, h5 {
 
   .data-table { min-width: 680px; }
 
+  .surface-card,
+  .glass,
+  .table-shell {
+    max-width: 100%;
+  }
+
   .button-primary,
   .button-secondary {
     min-height: 2.5rem;
+    width: 100%;
+    white-space: normal;
   }
 
   .field {

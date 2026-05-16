@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { CustomerOrdersRow } from "@/components/customer-orders-row";
 import { PageHeader } from "@/components/page-header";
+import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { createCustomerAction } from "../actions/customers";
@@ -65,7 +66,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       />
 
       <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <form action={createCustomerAction} className="surface-card grid gap-4 p-5 xl:sticky xl:top-4">
+        <ResponsiveFormPanel title="Novo cliente">
+        <form action={createCustomerAction} className="surface-card grid gap-4 p-5">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-success to-success/70 text-primary-fg">
               <UsersRound size={17} strokeWidth={2.1} />
@@ -85,6 +87,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           <label className="label">Observações<textarea className="field min-h-16" name="notes" /></label>
           <button className="button-primary">Cadastrar cliente</button>
         </form>
+        </ResponsiveFormPanel>
 
         <div className="grid gap-3">
           <form method="GET" className="grid gap-2 sm:flex">

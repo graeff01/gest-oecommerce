@@ -6,6 +6,7 @@ import { AnimatedShell } from "@/components/animated-shell";
 import { FinanceForm } from "@/components/finance-form";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
+import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { date, money, startOfDayBRT, endOfDayBRT } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings, DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
@@ -114,9 +115,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </form>
 
       <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <div className="xl:sticky xl:top-4">
+        <ResponsiveFormPanel title="Novo lançamento">
           <FinanceForm categories={financeCategories} />
-        </div>
+        </ResponsiveFormPanel>
 
         <div>
           <div className="table-shell max-h-[28rem] lg:max-h-[36rem] xl:max-h-[calc(100vh-13rem)]">

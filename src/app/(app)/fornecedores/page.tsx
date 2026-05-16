@@ -3,6 +3,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
+import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { prisma } from "@/lib/prisma";
 import { createSupplierAction, updateSupplierAction, deleteSupplierAction } from "../actions/suppliers";
 
@@ -31,7 +32,8 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
         description="Organize fornecedores, contatos, prazos e histórico de compras de mercadoria."
       />
       <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <form action={createSupplierAction} className="surface-card grid gap-4 p-5 xl:sticky xl:top-4">
+        <ResponsiveFormPanel title="Novo fornecedor">
+        <form action={createSupplierAction} className="surface-card grid gap-4 p-5">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-info to-primary text-primary-fg shadow-glow">
               <Building2 size={17} strokeWidth={2.1} />
@@ -51,12 +53,13 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
           <label className="label">Observações<textarea className="field min-h-16" name="notes" /></label>
           <button className="button-primary">Cadastrar fornecedor</button>
         </form>
+        </ResponsiveFormPanel>
 
         <div className="grid gap-3">
-          <form method="GET" className="flex gap-2">
+          <form method="GET" className="grid gap-2 sm:flex">
             <input className="field flex-1" name="q" type="search" placeholder="Buscar por nome, contato, telefone ou CNPJ..." defaultValue={search} />
             <button type="submit" className="button-primary px-4">Buscar</button>
-            {search && <a href="/fornecedores" className="flex items-center rounded-xl border border-border px-3 text-sm text-muted hover:text-fg">Limpar</a>}
+            {search && <a href="/fornecedores" className="flex min-h-10 items-center justify-center rounded-xl border border-border px-3 text-sm text-muted hover:text-fg">Limpar</a>}
           </form>
 
           <div className="table-shell max-h-[32rem] xl:max-h-[calc(100vh-16rem)]">

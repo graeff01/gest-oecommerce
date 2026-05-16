@@ -8,6 +8,7 @@ import { OrderEditModal } from "@/components/order-edit-modal";
 import { OrderForm } from "@/components/order-form";
 import { OrderReturnModal } from "@/components/order-return-modal";
 import { PageHeader } from "@/components/page-header";
+import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { date, money } from "@/lib/format";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
@@ -57,7 +58,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
         action={<a href="/api/export/orders" className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-muted hover:text-fg transition"><Download size={15} />Exportar CSV</a>}
       />
       <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <div className="xl:sticky xl:top-4">
+        <ResponsiveFormPanel title="Nova venda">
           <OrderForm
             customers={customers.map((c) => ({ id: c.id, name: c.name }))}
             variants={variants.map((v) => ({
@@ -69,7 +70,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
               product: { name: v.product.name }
             }))}
           />
-        </div>
+        </ResponsiveFormPanel>
 
         <div>
           <div className="table-shell max-h-[28rem] lg:max-h-[36rem] xl:max-h-[calc(100vh-13rem)]">

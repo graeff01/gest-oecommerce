@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
 import { ProfileForm } from "@/components/profile-form";
+import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { SettingsTabs } from "@/components/settings-tabs";
 import { StoreSettingsForm } from "@/components/store-settings-form";
 import { requireUser } from "@/lib/auth";
@@ -87,6 +88,7 @@ export default async function SettingsPage() {
             icon: <ListChecks size={16} strokeWidth={2.1} />,
             content: (
               <div className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
+                <ResponsiveFormPanel title="Editar categorias">
                 <form action={saveFinanceCategoriesAction} className="surface-card grid gap-4 p-5">
                   <div className="flex items-center gap-3">
                     <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-accent to-accent/70 text-fg">
@@ -109,6 +111,7 @@ export default async function SettingsPage() {
                   </label>
                   <button className="button-primary">Salvar categorias</button>
                 </form>
+                </ResponsiveFormPanel>
                 <div className="surface-card grid content-start gap-4 p-5">
                   <p className="text-[0.74rem] font-semibold uppercase tracking-wide text-muted">Categorias padrão</p>
                   <div className="flex flex-wrap gap-2">
@@ -197,6 +200,7 @@ export default async function SettingsPage() {
             icon: <UsersRound size={16} strokeWidth={2.1} />,
             content: (
               <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
+                <ResponsiveFormPanel title="Novo usuário">
                 <form action={createUserAction} className="surface-card grid gap-4 p-5">
                   <div className="flex items-center gap-3">
                     <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-success to-success/70 text-primary-fg">
@@ -227,6 +231,7 @@ export default async function SettingsPage() {
                   </label>
                   <button className="button-primary">Criar usuário</button>
                 </form>
+                </ResponsiveFormPanel>
                 <div className="table-shell overflow-x-auto">
                   <table className="data-table">
                     <thead>

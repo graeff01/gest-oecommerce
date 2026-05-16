@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
 import { PurchaseForm } from "@/components/purchase-form";
+import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { date, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cancelPurchaseAction } from "../actions/finance";
@@ -35,9 +36,9 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
         description="Área preparada para compras de fornecedor, recebimento e entrada automática de mercadoria."
       />
       <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <div className="xl:sticky xl:top-4">
+        <ResponsiveFormPanel title="Nova compra">
           <PurchaseForm suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))} variants={variants.map((v) => ({ id: v.id, sku: v.sku, color: v.color, size: v.size, stockQuantity: v.stockQuantity, productName: v.product.name }))} />
-        </div>
+        </ResponsiveFormPanel>
 
         <div className="surface-card relative overflow-hidden p-5">
           <span className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-accent/15 blur-3xl" />
