@@ -70,7 +70,7 @@ export function AppSidebar({
 
   return (
     <aside
-      className={`fixed bottom-3 left-3 right-3 z-20 rounded-2xl border border-border bg-surface/90 p-2 shadow-elev backdrop-blur-xl transition-[width] duration-200
+      className={`fixed bottom-2 left-2 right-2 z-20 rounded-2xl border border-border bg-surface/92 p-1.5 shadow-elev backdrop-blur-xl transition-[width] duration-200 sm:bottom-3 sm:left-3 sm:right-3 sm:p-2
         lg:bottom-4 lg:left-4 lg:right-auto lg:top-4 lg:flex lg:h-[calc(100dvh-2rem)] lg:flex-col lg:overflow-y-auto lg:p-3
         ${collapsed ? "lg:w-[64px]" : "lg:w-[262px]"}`}
     >
@@ -124,7 +124,7 @@ export function AppSidebar({
       </div>
 
       {/* nav */}
-      <nav className="scrollbar-none flex gap-1 overflow-x-auto lg:grid lg:gap-0.5 lg:overflow-x-visible">
+      <nav className="scrollbar-none flex gap-1 overflow-x-auto pb-[env(safe-area-inset-bottom)] lg:grid lg:gap-0.5 lg:overflow-x-visible lg:pb-0">
         {nav.map((item, index) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
@@ -140,7 +140,8 @@ export function AppSidebar({
                 prefetch
                 onMouseEnter={() => router.prefetch(item.href)}
                 onFocus={() => router.prefetch(item.href)}
-                className={`group relative flex w-full shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-[0.86rem] font-medium transition
+                className={`group relative flex min-w-[4.75rem] shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[0.68rem] font-medium transition sm:min-w-[5.5rem] sm:text-[0.72rem]
+                  lg:min-w-0 lg:w-full lg:flex-row lg:gap-3 lg:px-3 lg:py-2.5 lg:text-left lg:text-[0.86rem]
                   lg:shrink
                   ${collapsed ? "lg:justify-center lg:px-0" : "lg:justify-start"}
                   ${active ? "text-fg" : "text-muted hover:text-fg"}`}
@@ -191,19 +192,14 @@ export function AppSidebar({
                   )}
                 </motion.span>
 
-                <AnimatePresence initial={false}>
-                  {!collapsed && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: "auto" }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className={`relative z-10 hidden overflow-hidden whitespace-nowrap lg:inline ${active ? "font-semibold text-fg" : ""}`}
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                <motion.span
+                  initial={mounted ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.15 }}
+                  className={`relative z-10 max-w-[4.25rem] overflow-hidden text-ellipsis whitespace-nowrap sm:max-w-[5rem] lg:max-w-none ${collapsed ? "lg:hidden" : "lg:inline"} ${active ? "font-semibold text-fg" : ""}`}
+                >
+                  {item.label}
+                </motion.span>
 
                 {item.href === "/credario" && !collapsed && (
                   <span className="relative z-10 hidden lg:inline">

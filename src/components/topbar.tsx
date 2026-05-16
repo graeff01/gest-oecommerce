@@ -27,29 +27,29 @@ function todayLabel() {
 
 export function Topbar({ user }: { user: SessionUser }) {
   return (
-    <header className="sticky top-3 z-10 flex items-center justify-between gap-2 rounded-2xl border border-border bg-surface/80 p-2 pl-4 shadow-soft backdrop-blur-xl">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <header className="sticky top-2 z-10 flex flex-col gap-2 rounded-2xl border border-border bg-surface/88 p-2 shadow-soft backdrop-blur-xl sm:top-3 sm:flex-row sm:items-center sm:justify-between sm:pl-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3 self-stretch">
         <span className="hidden h-2 w-2 shrink-0 animate-pulse-soft rounded-full bg-success md:inline-block" />
         <p className="hidden min-w-0 truncate text-[0.82rem] font-medium text-muted lg:block">
           <span className="text-fg">{todayLabel()}</span>
           <span className="mx-2 hidden text-subtle md:inline">·</span>
           <span className="hidden md:inline">Operação ativa</span>
         </p>
-        <div className="flex-1 lg:flex-none">
+        <div className="min-w-0 flex-1 lg:flex-none">
           <GlobalSearch />
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-start">
         <ThemeToggle compact />
 
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface py-1 pl-1 pr-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-surface py-1 pl-1 pr-2 sm:flex-none sm:gap-3 sm:pr-3">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary to-primary-2 text-[0.78rem] font-bold text-primary-fg">
             {initials(user.name)}
           </span>
-          <div className="hidden min-w-0 leading-tight sm:block">
+          <div className="min-w-0 leading-tight">
             <strong className="block truncate text-[0.83rem] font-semibold text-fg">{user.name}</strong>
-            <span className="block text-[0.7rem] font-medium text-muted">{roleLabel(user.role)}</span>
+            <span className="block truncate text-[0.7rem] font-medium text-muted">{roleLabel(user.role)}</span>
           </div>
         </div>
 

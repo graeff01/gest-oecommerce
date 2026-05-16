@@ -256,7 +256,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        <div className="mt-4 grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           <button
             type="button"
             onClick={() => setSelectedSection("__all__")}
@@ -401,7 +401,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {activeProducts.map((product) => (
             <motion.button
               key={product.id}
@@ -496,7 +496,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
       <AnimatePresence>
         {selectedProduct ? (
           <motion.div
-            className="fixed inset-0 z-40 grid place-items-center bg-fg/40 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-40 grid place-items-center bg-fg/40 p-2 backdrop-blur-md sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -507,7 +507,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={{ duration: 0.24, ease: [0.22, 0.9, 0.32, 1] }}
-              className="flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-elev"
+              className="flex max-h-[94dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-elevated shadow-elev sm:max-h-[92dvh] sm:rounded-3xl"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-surface/60 p-4 sm:p-5">
@@ -549,7 +549,7 @@ export function ProductCatalog({ products }: { products: CatalogProduct[] }) {
 
               <div className="grid min-h-0 flex-1 overflow-y-auto xl:grid-cols-[1fr_340px] xl:overflow-hidden">
                 <section className="grid content-start gap-4 overflow-y-auto p-4 sm:p-5">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 sm:grid-cols-3">
                     <div className="rounded-2xl border border-border bg-surface-2/40 p-4">
                       <span className="grid h-9 w-9 place-items-center rounded-xl bg-success-soft text-success">
                         <Boxes size={18} strokeWidth={2.1} />

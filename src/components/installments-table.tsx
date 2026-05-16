@@ -73,7 +73,7 @@ export function InstallmentsTable({ installments }: { installments: Installment[
     <div className="grid gap-3">
       {/* barra de ações em lote */}
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/25 bg-primary-soft px-4 py-3">
+        <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary-soft px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center">
           <span className="text-[0.84rem] font-semibold text-fg">
             {selected.size} {selected.size === 1 ? "parcela selecionada" : "parcelas selecionadas"}
             {" · "}
@@ -81,7 +81,7 @@ export function InstallmentsTable({ installments }: { installments: Installment[
               {money(installments.filter((i) => selected.has(i.id)).reduce((s, i) => s + i.amount, 0))}
             </span>
           </span>
-          <div className="flex flex-1 items-center justify-end gap-2">
+          <div className="grid w-full gap-2 sm:flex sm:flex-1 sm:items-center sm:justify-end">
             <select
               className="field h-8 py-1 text-xs"
               value={bulkMethod}
@@ -104,7 +104,7 @@ export function InstallmentsTable({ installments }: { installments: Installment[
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              className="h-8 rounded-xl border border-border px-3 text-xs text-muted hover:text-fg transition"
+              className="h-8 rounded-xl border border-border px-3 text-xs text-muted transition hover:text-fg"
             >
               Cancelar
             </button>

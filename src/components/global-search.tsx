@@ -74,7 +74,7 @@ export function GlobalSearch() {
   const noResults = results && !hasResults;
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-xs sm:max-w-sm">
+    <div ref={containerRef} className="relative w-full max-w-none sm:max-w-sm">
       <label className="group flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-2/60 px-3 transition focus-within:border-primary/40 focus-within:bg-surface focus-within:shadow-ring">
         <Search size={14} className="shrink-0 text-subtle group-focus-within:text-primary" strokeWidth={2.1} />
         <input
@@ -93,7 +93,7 @@ export function GlobalSearch() {
       </label>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-2xl border border-border bg-elevated shadow-elev">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-[70dvh] overflow-y-auto rounded-2xl border border-border bg-elevated shadow-elev">
           {noResults && (
             <p className="px-4 py-6 text-center text-[0.84rem] text-muted">
               Nenhum resultado para <strong className="text-fg">"{query}"</strong>

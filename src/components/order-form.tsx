@@ -232,7 +232,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
             Nenhum produto cadastrado ainda
           </div>
         ) : (
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_auto]">
             <select
               className="field flex-1"
               value={selectedVariantId}
@@ -258,7 +258,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
               )}
             </select>
             <input
-              className="field w-20 shrink-0"
+              className="field w-full sm:w-20 sm:shrink-0"
               type="number"
               min="1"
               max={selectedVariant?.stockQuantity ?? 1}
@@ -269,7 +269,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
               type="button"
               onClick={addToCart}
               disabled={!selectedVariantId || !selectedVariant || selectedVariant.stockQuantity <= 0}
-              className="button-primary shrink-0 px-3"
+              className="button-primary w-full shrink-0 px-3 sm:w-auto"
             >
               <Plus size={15} strokeWidth={2.4} />
               Adicionar
@@ -283,7 +283,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
             {cart.map((item, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2"
+                className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex min-w-0 items-center gap-1.5">
                   {!item.variantId && (
@@ -293,7 +293,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
                   )}
                   <p className="min-w-0 truncate text-[0.83rem] font-medium text-fg">{item.label}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="grid w-full grid-cols-[auto_3.5rem_auto_1.5rem] items-center gap-2 sm:w-auto">
                   <span className="text-[0.78rem] text-muted">{money(item.unitPrice)}</span>
                   <input
                     className="field h-7 w-14 py-0 text-center text-xs"
@@ -302,7 +302,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
                     value={item.quantity}
                     onChange={(e) => updateCartQty(index, Number(e.target.value))}
                   />
-                  <span className="text-[0.78rem] font-semibold text-fg">{money(item.unitPrice * item.quantity)}</span>
+                  <span className="text-right text-[0.78rem] font-semibold text-fg">{money(item.unitPrice * item.quantity)}</span>
                   <button
                     type="button"
                     onClick={() => removeFromCart(index)}
@@ -331,9 +331,9 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
               onChange={(e) => setManualLabel(e.target.value)}
               autoFocus
             />
-            <div className="flex gap-2">
+            <div className="grid gap-2 sm:grid-cols-[1fr_5rem]">
               <input
-                className="field flex-1"
+                className="field"
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -342,7 +342,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
                 onChange={(e) => setManualPrice(e.target.value)}
               />
               <input
-                className="field w-20"
+                className="field w-full sm:w-20"
                 type="number"
                 min="1"
                 placeholder="Qtd"
@@ -350,7 +350,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
                 onChange={(e) => setManualQty(Math.max(1, Number(e.target.value)))}
               />
             </div>
-            <div className="flex gap-2">
+            <div className="grid gap-2 sm:flex sm:gap-2">
               <button
                 type="button"
                 onClick={addManualItem}
@@ -415,7 +415,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
 
       {/* resumo do total quando há desconto ou taxa */}
       {(discountNum > 0 || feeNum > 0) && cart.length > 0 && (
-        <div className="flex items-center justify-end gap-3 rounded-xl border border-border bg-surface-2/40 px-4 py-2.5 text-[0.83rem]">
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 rounded-xl border border-border bg-surface-2/40 px-4 py-2.5 text-[0.83rem]">
           <span className="text-muted">Subtotal</span>
           <span className="font-medium text-fg">{money(cartTotal)}</span>
           {discountNum > 0 && (
@@ -457,7 +457,7 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
       {/* crediário — parcelas com datas livres */}
       {isCrediario && (
         <div className="grid gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <p className="text-[0.78rem] font-semibold text-fg">Parcelas do crediário</p>
             <div className="flex items-center gap-2">
               <span className="text-[0.74rem] text-muted">Qtd.:</span>
@@ -476,8 +476,8 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
             {dueDates.map((d, i) => {
               const parcValue = orderTotal / installmentCount;
               return (
-                <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
-                  <span className="w-16 shrink-0 text-[0.74rem] font-semibold text-muted">
+                <div key={i} className="grid gap-2 rounded-lg border border-border bg-surface px-3 py-2 sm:grid-cols-[5rem_1fr] sm:items-center">
+                  <span className="text-[0.74rem] font-semibold text-muted sm:w-16 sm:shrink-0">
                     {i + 1}/{installmentCount}
                     <span className="ml-1 font-normal text-fg">{money(parcValue)}</span>
                   </span>

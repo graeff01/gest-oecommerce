@@ -63,10 +63,10 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
       </section>
 
       <div className="grid gap-3">
-      <form method="GET" className="flex gap-2">
+      <form method="GET" className="grid gap-2 sm:flex">
         <input className="field flex-1" name="q" type="search" placeholder="Buscar por código ou fornecedor..." defaultValue={search} />
         <button type="submit" className="button-primary px-4">Buscar</button>
-        {search && <a href="/compras" className="flex items-center rounded-xl border border-border px-3 text-sm text-muted hover:text-fg">Limpar</a>}
+        {search && <a href="/compras" className="flex min-h-10 items-center justify-center rounded-xl border border-border px-3 text-sm text-muted hover:text-fg">Limpar</a>}
       </form>
       <div className="table-shell overflow-x-auto">
         <table className="data-table">

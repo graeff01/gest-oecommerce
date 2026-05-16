@@ -21,7 +21,7 @@ export function Pagination({ total, page, pageSize }: { total: number; page: num
   const to = Math.min(page * pageSize, total);
 
   return (
-    <div className="flex items-center justify-between gap-3 px-1 py-2 text-[0.82rem] text-muted">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-2 text-[0.82rem] text-muted">
       <span>{from}–{to} de {total}</span>
       <div className="flex items-center gap-1">
         <button
