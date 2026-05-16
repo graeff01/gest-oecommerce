@@ -52,6 +52,21 @@ enum StockMovementType {
   RETURN
 }
 
+enum AdminClientStatus {
+  SETUP
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELED
+}
+
+enum AdminClientPlan {
+  STARTER
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
 model User {
   id              String      @id @default(cuid())
   name            String
@@ -265,4 +280,25 @@ model StoreSettings {
   cashBalance        Decimal  @default(0) @db.Decimal(12, 2)
   financeCategories  String[] @default([])
   updatedAt          DateTime @updatedAt
+}
+
+model AdminClient {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  name        String
+  storeName   String?
+  appUrl      String?
+  databaseUrl String
+  status      AdminClientStatus @default(TRIAL)
+  plan        AdminClientPlan   @default(STARTER)
+  monthlyFee  Decimal?          @db.Decimal(12, 2)
+  renewalDay  Int?
+  notes       String?
+  tags        String[]          @default([])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status])
+  @@index([plan])
+  @@index([createdAt])
 }
