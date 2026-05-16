@@ -70,7 +70,7 @@ export function OrderReturnModal({ orderId, orderCode, items }: Props) {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-50 grid place-items-center bg-fg/40 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-50 grid place-items-end bg-fg/40 p-0 backdrop-blur-md sm:place-items-center sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -81,7 +81,7 @@ export function OrderReturnModal({ orderId, orderCode, items }: Props) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
               transition={{ duration: 0.22, ease: [0.22, 0.9, 0.32, 1] }}
-              className="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-elev"
+              className="flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-elevated shadow-elev sm:max-h-[90dvh] sm:rounded-3xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* header */}
@@ -106,7 +106,7 @@ export function OrderReturnModal({ orderId, orderCode, items }: Props) {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                 {state?.success ? (
                   <div className="rounded-xl border border-success/25 bg-success-soft p-4 text-center text-[0.9rem] font-medium text-success">
                     Devolução registrada com sucesso!
@@ -189,7 +189,7 @@ export function OrderReturnModal({ orderId, orderCode, items }: Props) {
                       />
                     </label>
 
-                    <div className="flex gap-2">
+                    <div className="grid gap-2 sm:flex">
                       <button
                         type="submit"
                         disabled={isPending}

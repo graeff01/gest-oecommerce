@@ -69,7 +69,7 @@ export function OrderDetailModal({ order }: { order: OrderDetail }) {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-50 grid place-items-center bg-fg/40 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-50 grid place-items-end bg-fg/40 p-0 backdrop-blur-md sm:place-items-center sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -80,7 +80,7 @@ export function OrderDetailModal({ order }: { order: OrderDetail }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
               transition={{ duration: 0.22, ease: [0.22, 0.9, 0.32, 1] }}
-              className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-elev"
+              className="flex max-h-[88dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-border bg-elevated shadow-elev sm:max-h-[90dvh] sm:rounded-3xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* header */}
@@ -108,7 +108,7 @@ export function OrderDetailModal({ order }: { order: OrderDetail }) {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                <div className="grid gap-5 p-6">
+                <div className="grid gap-4 p-4 sm:gap-5 sm:p-6">
 
                   {/* cliente + canal */}
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -147,7 +147,7 @@ export function OrderDetailModal({ order }: { order: OrderDetail }) {
                       {order.items.map((item, idx) => (
                         <div
                           key={item.id}
-                          className={`flex items-center justify-between gap-3 px-4 py-3 ${idx > 0 ? "border-t border-border" : ""}`}
+                          className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 ${idx > 0 ? "border-t border-border" : ""}`}
                         >
                           <div className="min-w-0">
                             <p className="truncate font-medium text-fg">
@@ -159,7 +159,7 @@ export function OrderDetailModal({ order }: { order: OrderDetail }) {
                               <p className="text-[0.76rem] text-warning">Item sem cadastro</p>
                             )}
                           </div>
-                          <div className="shrink-0 text-right">
+                          <div className="shrink-0 text-left sm:text-right">
                             <p className="font-semibold text-fg">{money(Number(item.unitPrice) * item.quantity)}</p>
                             <p className="text-[0.76rem] text-muted">{item.quantity}× {money(item.unitPrice)}</p>
                           </div>
@@ -219,7 +219,7 @@ export function OrderDetailModal({ order }: { order: OrderDetail }) {
                           const today = new Date(); today.setHours(0, 0, 0, 0);
                           const overdue = !inst.paidAt && due < today;
                           return (
-                            <div key={inst.id} className={`flex items-center justify-between gap-3 px-4 py-2.5 ${idx > 0 ? "border-t border-border" : ""} ${inst.paidAt ? "bg-success-soft/30" : overdue ? "bg-danger-soft/30" : ""}`}>
+                            <div key={inst.id} className={`flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 ${idx > 0 ? "border-t border-border" : ""} ${inst.paidAt ? "bg-success-soft/30" : overdue ? "bg-danger-soft/30" : ""}`}>
                               <div className="flex items-center gap-3">
                                 <span className="w-8 text-[0.76rem] font-semibold text-muted">{inst.sequence}/{inst.totalCount}</span>
                                 <span className={`text-[0.8rem] ${overdue ? "font-semibold text-danger" : "text-muted"}`}>

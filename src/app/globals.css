@@ -515,7 +515,81 @@ h1, h2, h3, h4, h5 {
     border-radius: 0.95rem;
   }
 
-  .data-table { min-width: 680px; }
+  .table-shell {
+    display: grid;
+    gap: 0.75rem;
+    max-height: none !important;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100% !important;
+  }
+
+  .data-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .data-table tr {
+    overflow: hidden;
+    border: 1px solid rgb(var(--border));
+    border-radius: 0.95rem;
+    background: rgb(var(--surface));
+    box-shadow: 0 4px 14px -8px rgb(var(--shadow) / 0.12);
+  }
+
+  .data-table td {
+    border-top: 1px solid rgb(var(--border) / 0.6);
+    padding: 0.7rem 0.85rem;
+    text-align: left !important;
+    white-space: normal !important;
+  }
+
+  .data-table td:first-child {
+    border-top: 0;
+  }
+
+  .data-table td:empty {
+    display: none;
+  }
+
+  .data-table td[colspan] {
+    display: block;
+    text-align: center !important;
+  }
+
+  .data-table td > .flex,
+  .data-table td form,
+  .data-table td form.flex {
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .data-table td form .field,
+  .data-table td select.field {
+    min-width: 8rem;
+    flex: 1 1 8rem;
+  }
 
   .surface-card,
   .glass,
@@ -532,6 +606,12 @@ h1, h2, h3, h4, h5 {
 
   .field {
     min-height: 2.6rem;
+  }
+
+  [popover] {
+    max-width: calc(100vw - 1rem) !important;
+    max-height: 85dvh !important;
+    overflow-y: auto !important;
   }
 }
 

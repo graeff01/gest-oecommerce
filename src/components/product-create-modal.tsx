@@ -24,7 +24,7 @@ export function ProductCreateModal() {
       <AnimatePresence>
         {open ? (
           <motion.div
-            className="fixed inset-0 z-40 grid place-items-center bg-fg/40 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-40 grid place-items-end bg-fg/40 p-0 backdrop-blur-md sm:place-items-center sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -36,7 +36,7 @@ export function ProductCreateModal() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 14, scale: 0.97 }}
               transition={{ duration: 0.22, ease: [0.22, 0.9, 0.32, 1] }}
-              className="grid w-full max-w-3xl max-h-[92dvh] gap-0 overflow-y-auto overflow-x-hidden rounded-3xl border border-border bg-elevated shadow-elev"
+              className="grid max-h-[88dvh] w-full max-w-3xl gap-0 overflow-y-auto overflow-x-hidden rounded-t-3xl border border-border bg-elevated shadow-elev sm:max-h-[92dvh] sm:rounded-3xl"
               onClick={(event) => event.stopPropagation()}
             >
               {/* header com gradient */}
