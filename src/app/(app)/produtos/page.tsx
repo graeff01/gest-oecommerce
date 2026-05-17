@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { ProductCatalog } from "@/components/product-catalog";
 import { ProductCreateModal } from "@/components/product-create-modal";
 import { ProductGrowthKit, type ReorderProduct, type StagnantProduct } from "@/components/product-growth-kit";
+import { ProductMobileInventory } from "@/components/product-mobile-inventory";
 import { prisma } from "@/lib/prisma";
 import { buildProductPromotionMessage } from "@/lib/whatsapp";
 
@@ -172,20 +173,30 @@ export default async function ProductsPage() {
         description="Cadastre a peca uma vez e controle cada variacao por SKU, cor, tamanho, custo, preco e estoque."
       />
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Modelos" value={String(catalogProducts.length)} detail="Produtos cadastrados" icon={ShoppingBag} tone="primary" />
         <MetricCard label="Variacoes" value={String(totalVariants)} detail="SKUs ativos no catalogo" icon={Layers} tone="success" />
         <MetricCard label="Unidades em estoque" value={String(totalUnits)} detail="Soma de todas as variacoes" icon={Boxes} tone="warning" />
         <MetricCard label="Estoque baixo" value={String(lowStockCount)} detail="Variacoes abaixo do minimo" icon={AlertTriangle} tone="danger" />
       </section>
 
-      <ProductGrowthKit
+      <ProductMobileInventory
+        products={catalogProducts}
         stagnantProducts={stagnantProducts}
         reorderProducts={reorderProducts}
-        bestSellers={bestSellers}
       />
 
-      <ProductCatalog products={catalogProducts} />
+      <div className="hidden md:block">
+        <ProductGrowthKit
+          stagnantProducts={stagnantProducts}
+          reorderProducts={reorderProducts}
+          bestSellers={bestSellers}
+        />
+      </div>
+
+      <div className="hidden md:block">
+        <ProductCatalog products={catalogProducts} />
+      </div>
       <ProductCreateModal />
     </AnimatedShell>
   );
