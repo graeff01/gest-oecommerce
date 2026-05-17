@@ -1,6 +1,7 @@
 import { Download, UsersRound } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
+import { CustomerMobileCard } from "@/components/customer-mobile-card";
 import { CustomerOrdersRow } from "@/components/customer-orders-row";
 import { PageHeader } from "@/components/page-header";
 import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
@@ -143,7 +144,17 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             {search && <a href="/clientes" className="flex min-h-10 items-center justify-center rounded-xl border border-border px-3 text-sm text-muted hover:text-fg">Limpar</a>}
           </form>
 
-          <div className="table-shell max-h-[28rem] lg:max-h-[36rem] xl:max-h-[calc(100vh-16rem)]">
+          <div className="grid gap-3 md:hidden">
+            {rows.length ? rows.map((c) => (
+              <CustomerMobileCard key={c.id} c={c} />
+            )) : (
+              <div className="surface-card p-6 text-center text-muted">
+                {search ? `Nenhum cliente encontrado para "${search}".` : "Nenhum cliente cadastrado ainda."}
+              </div>
+            )}
+          </div>
+
+          <div className="table-shell hidden max-h-[28rem] md:block lg:max-h-[36rem] xl:max-h-[calc(100vh-16rem)]">
             <table className="data-table">
               <thead>
                 <tr>

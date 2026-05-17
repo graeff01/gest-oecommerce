@@ -112,7 +112,60 @@ export function InstallmentsTable({ installments }: { installments: Installment[
         </div>
       )}
 
-      <div className="table-shell overflow-x-auto">
+      <div className="grid gap-3 md:hidden">
+        {installments.map((i) => {
+          const due = new Date(i.dueDate); due.setHours(0, 0, 0, 0);
+          const overdue = due < today;
+          const checked = selected.has(i.id);
+          const href = buildWhatsAppUrl(i.customerPhone, i);
+          return (
+            <article key={i.id} className={`surface-card p-4 ${checked ? "ring-1 ring-primary/25" : ""}`}>
+              <div className="flex items-start justify-between gap-3">
+                <button type="button" onClick={() => toggle(i.id)} className="mt-0.5 text-muted">
+                  {checked ? <CheckSquare2 size={18} strokeWidth={2.1} className="text-primary" /> : <Square size={18} strokeWidth={2.1} />}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-display text-base font-semibold text-fg">{i.customerName}</h3>
+                  <p className="mt-1 text-[0.76rem] text-muted">{i.orderCode} · parcela {i.sequence}/{i.totalCount}</p>
+                </div>
+                <span className={overdue ? "status-pill pill-danger shrink-0" : "chip shrink-0"}>{date(i.dueDate)}</span>
+              </div>
+
+              <div className="mt-4 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Valor</p>
+                  <p className="mt-1 font-display text-xl font-semibold text-fg">{money(i.amount)}</p>
+                </div>
+                {href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-success/25 bg-success-soft px-3 text-[0.78rem] font-semibold text-success"
+                  >
+                    <MessageCircle size={14} />
+                    Cobrar
+                  </a>
+                ) : null}
+              </div>
+
+              <form action={payInstallmentAction} className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+                <input type="hidden" name="installmentId" value={i.id} />
+                <select className="field h-10 py-0 text-sm" name="paymentMethod" defaultValue="PIX">
+                  <option value="PIX">Pix</option>
+                  <option value="CASH">Dinheiro</option>
+                  <option value="DEBIT_CARD">Debito</option>
+                  <option value="CREDIT_CARD">Credito</option>
+                  <option value="BANK_SLIP">Boleto</option>
+                </select>
+                <button className="button-primary h-10 px-3 py-0 text-xs">Pagar</button>
+              </form>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="table-shell hidden overflow-x-auto md:block">
         <table className="data-table">
           <thead>
             <tr>

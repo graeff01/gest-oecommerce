@@ -72,8 +72,143 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           />
         </ResponsiveFormPanel>
 
-        <div>
-          <div className="table-shell max-h-[28rem] lg:max-h-[36rem] xl:max-h-[calc(100vh-13rem)]">
+        <div className="grid gap-3">
+          <div className="grid gap-3 md:hidden">
+            {orders.length ? (
+              orders.map((order) => (
+                <article key={order.id} className="surface-card overflow-hidden p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-display text-base font-semibold text-fg">{order.code}</p>
+                      <p className="mt-1 truncate text-[0.78rem] text-muted">{order.customer?.name ?? "Avulsa"} · {order.channel}</p>
+                    </div>
+                    <span className={ORDER_STATUS_TONES[order.status] ?? "status-pill"}>
+                      {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-border bg-surface-2/35 p-3">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Total</p>
+                      <p className="mt-1 font-display text-lg font-semibold text-fg">{money(order.total)}</p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-surface-2/35 p-3">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Data</p>
+                      <p className="mt-1 font-display text-lg font-semibold text-fg">{date(order.createdAt)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <OrderDetailModal order={{
+                      ...order,
+                      subtotal: Number(order.subtotal),
+                      discount: Number(order.discount),
+                      fee: Number(order.fee),
+                      total: Number(order.total),
+                      items: order.items.map(i => ({
+                        ...i,
+                        unitPrice: Number(i.unitPrice),
+                        costPrice: Number(i.costPrice)
+                      })),
+                      installments: order.installments.map(i => ({
+                        ...i,
+                        amount: Number(i.amount)
+                      }))
+                    }} />
+                    <OrderEditModal
+                      order={{
+                        id: order.id,
+                        channel: order.channel,
+                        discount: Number(order.discount),
+                        fee: Number(order.fee),
+                        notes: order.notes,
+                        status: order.status,
+                        paymentMethod: order.paymentMethod,
+                        total: Number(order.total),
+                        subtotal: Number(order.subtotal),
+                        createdAt: order.createdAt.toISOString()
+                      }}
+                      customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+                      customerId={order.customerId}
+                      installments={order.installments.map((i) => ({
+                        id: i.id,
+                        sequence: i.sequence,
+                        totalCount: i.totalCount,
+                        dueDate: i.dueDate.toISOString(),
+                        amount: Number(i.amount),
+                        paidAt: i.paidAt ? i.paidAt.toISOString() : null
+                      }))}
+                    />
+                    <a
+                      href={`/api/orders/${order.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="grid h-9 w-9 place-items-center rounded-xl border border-border text-muted"
+                      title="Imprimir recibo"
+                    >
+                      <Printer size={14} strokeWidth={2.1} />
+                    </a>
+                    {order.customer?.phone && buildOrderWhatsAppUrl(order.customer.name, order.customer.phone, order.code, order.status, Number(order.total)) ? (
+                      <a
+                        href={buildOrderWhatsAppUrl(order.customer.name, order.customer.phone, order.code, order.status, Number(order.total))!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-success/25 bg-success-soft px-3 text-[0.78rem] font-semibold text-success"
+                      >
+                        <MessageCircle size={14} />
+                        WhatsApp
+                      </a>
+                    ) : null}
+                    {order.status !== "CANCELED" && (
+                      <OrderReturnModal
+                        orderId={order.id}
+                        orderCode={order.code}
+                        items={order.items.map((i) => ({
+                          id: i.id,
+                          quantity: i.quantity,
+                          unitPrice: Number(i.unitPrice),
+                          label: i.label,
+                          variant: i.variant
+                            ? {
+                                product: { name: i.variant.product.name },
+                                color: i.variant.color,
+                                size: i.variant.size
+                              }
+                            : null
+                        }))}
+                      />
+                    )}
+                  </div>
+
+                  {order.status !== "CANCELED" && order.status !== "DELIVERED" ? (
+                    <div className="mt-4 grid gap-2 border-t border-border pt-4">
+                      <form action={updateOrderStatusAction} className="grid grid-cols-[1fr_auto] gap-2">
+                        <input type="hidden" name="id" value={order.id} />
+                        <select name="status" defaultValue={order.status} className="field h-10 py-0 text-sm">
+                          <option value="NEW">Novo</option>
+                          <option value="PAID">Pago</option>
+                          <option value="PICKING">Separando</option>
+                          <option value="SHIPPED">Enviado</option>
+                          <option value="DELIVERED">Entregue</option>
+                        </select>
+                        <button type="submit" className="button-primary h-10 px-4 py-0 text-xs">OK</button>
+                      </form>
+                      <form action={cancelOrderAction}>
+                        <input type="hidden" name="id" value={order.id} />
+                        <DeleteButton confirmMessage={`Cancelar o pedido ${order.code}? Esta acao nao pode ser desfeita.`} />
+                      </form>
+                    </div>
+                  ) : null}
+                </article>
+              ))
+            ) : (
+              <div className="surface-card p-6 text-center text-muted">
+                Nenhuma venda registrada ainda. Use o botao de nova venda.
+              </div>
+            )}
+          </div>
+
+          <div className="table-shell hidden max-h-[28rem] md:block lg:max-h-[36rem] xl:max-h-[calc(100vh-13rem)]">
             <table className="data-table">
               <thead>
                 <tr>
