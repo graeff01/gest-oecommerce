@@ -20,7 +20,7 @@ export function ResponsiveFormPanel({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(9.15rem+env(safe-area-inset-bottom))] right-3 z-30 inline-flex h-12 min-h-12 max-w-[calc(100vw-1.5rem)] items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary to-primary-2 px-3 font-semibold text-primary-fg shadow-[0_18px_42px_-12px_rgb(var(--primary)/0.65)] transition hover:-translate-y-0.5 min-[430px]:right-4 min-[430px]:h-auto min-[430px]:px-4 xl:hidden"
+        className="fixed bottom-[calc(6.15rem+env(safe-area-inset-bottom))] right-3 z-30 inline-flex h-12 min-h-12 max-w-[calc(100vw-1.5rem)] items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary to-primary-2 px-3 font-semibold text-primary-fg shadow-[0_18px_42px_-12px_rgb(var(--primary)/0.65)] transition hover:-translate-y-0.5 min-[430px]:right-4 min-[430px]:h-auto min-[430px]:px-4 xl:hidden"
         title={title}
       >
         <Plus size={18} strokeWidth={2.4} />

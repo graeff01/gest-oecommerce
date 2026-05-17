@@ -37,6 +37,14 @@ const nav = [
   { href: "/configuracoes", label: "Configurações", icon: Settings,        from: "#6b7280", to: "#9ca3af", ring: "#6b728030" },
 ];
 
+const mobileHrefs = new Set(["/", "/vendas", "/produtos", "/clientes", "/credario"]);
+
+function mobileLabel(href: string, label: string) {
+  if (href === "/") return "Inicio";
+  if (href === "/credario") return "Cobrar";
+  return label;
+}
+
 const COLLAPSED_KEY = "sidebar-collapsed";
 
 export function AppSidebar({
@@ -127,6 +135,7 @@ export function AppSidebar({
       <nav className="scrollbar-none flex gap-1 overflow-x-auto pb-[env(safe-area-inset-bottom)] lg:grid lg:gap-0.5 lg:overflow-x-visible lg:pb-0">
         {nav.map((item, index) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const hiddenOnMobile = !mobileHrefs.has(item.href);
 
           return (
             <motion.div
@@ -134,13 +143,14 @@ export function AppSidebar({
               initial={mounted ? false : { opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.04, duration: 0.22, ease: "easeOut" }}
+              className={hiddenOnMobile ? "hidden lg:block" : "block flex-1"}
             >
               <Link
                 href={item.href}
                 prefetch
                 onMouseEnter={() => router.prefetch(item.href)}
                 onFocus={() => router.prefetch(item.href)}
-                className={`group relative flex min-w-[4.75rem] shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[0.68rem] font-medium transition sm:min-w-[5.5rem] sm:text-[0.72rem]
+                className={`group relative flex min-w-0 shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[0.66rem] font-medium transition sm:min-w-[5.5rem] sm:text-[0.72rem]
                   lg:min-w-0 lg:w-full lg:flex-row lg:gap-3 lg:px-3 lg:py-2.5 lg:text-left lg:text-[0.86rem]
                   lg:shrink
                   ${collapsed ? "lg:justify-center lg:px-0" : "lg:justify-start"}
@@ -198,7 +208,7 @@ export function AppSidebar({
                   transition={{ duration: 0.15 }}
                   className={`relative z-10 max-w-[4.25rem] overflow-hidden text-ellipsis whitespace-nowrap sm:max-w-[5rem] lg:max-w-none ${collapsed ? "lg:hidden" : "lg:inline"} ${active ? "font-semibold text-fg" : ""}`}
                 >
-                  {item.label}
+                  {mobileLabel(item.href, item.label)}
                 </motion.span>
 
                 {item.href === "/credario" && !collapsed && (
