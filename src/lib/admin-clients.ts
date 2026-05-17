@@ -350,6 +350,7 @@ export async function findAdminClientConfig(key: string): Promise<ClientConfig |
   const databaseClient = databaseClients.find((client) => client.key === key);
   if (databaseClient) return databaseClient;
 
+  if (process.env.ADMIN_CLIENTS_FALLBACK !== "1") return null;
   const envClient = envClientsConfig.find((client) => client.key === key);
   return envClient ? { ...envClient, source: "env" } : null;
 }
@@ -357,6 +358,10 @@ export async function findAdminClientConfig(key: string): Promise<ClientConfig |
 export async function fetchAllClients(): Promise<ClientSnapshot[]> {
   await syncEnvClientsToDatabase();
   const databaseClients = await fetchDatabaseClientConfigs();
+  if (process.env.ADMIN_CLIENTS_FALLBACK !== "1") {
+    if (databaseClients.length === 0) return [];
+    return Promise.all(databaseClients.map(fetchClientSnapshot));
+  }
   const envClients = envClientsConfig.map((client) => ({ ...client, source: "env" as const }));
   const databaseKeys = new Set(databaseClients.map((client) => client.key));
   const configs = [

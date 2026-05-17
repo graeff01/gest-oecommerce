@@ -27,7 +27,9 @@ import { fetchClientSnapshot, findAdminClientConfig } from "@/lib/admin-clients"
 import { fetchClientDetail } from "@/lib/admin-client-detail";
 import { getClientSnapshotHistory } from "@/lib/admin-snapshots";
 import { getTasksForClient } from "@/lib/admin-tasks";
+import { ensureOnboardingItems } from "@/lib/admin-onboarding";
 import { TaskList } from "@/components/admin/TaskList";
+import { OnboardingChecklist } from "@/components/admin/OnboardingChecklist";
 import { ContactQuickActions } from "@/components/admin/ContactQuickActions";
 import { NotesEditor } from "@/components/admin/NotesEditor";
 import { SalesChart, HealthHistoryChart } from "@/components/admin/SalesChart";
@@ -191,11 +193,12 @@ npx prisma migrate deploy`}
     source: config.source ?? "env"
   };
 
-  const [snap, detail, history, tasks] = await Promise.all([
+  const [snap, detail, history, tasks, onboarding] = await Promise.all([
     fetchClientSnapshot(config),
     fetchClientDetail(client.databaseUrl),
     dbClient ? getClientSnapshotHistory(dbClient.id, 30).catch(() => []) : Promise.resolve([]),
-    dbClient ? getTasksForClient(dbClient.id) : Promise.resolve([])
+    dbClient ? getTasksForClient(dbClient.id) : Promise.resolve([]),
+    dbClient ? ensureOnboardingItems(dbClient.id) : Promise.resolve([])
   ]);
 
   const criticalCount = snap.alerts.filter((a) => a.level === "critical").length;
@@ -588,7 +591,7 @@ npx prisma migrate deploy`}
 
         {/* ── CONTACT + NOTES + TASKS ──────────────────────────────── */}
         {dbClient ? (
-          <section className="grid gap-4 lg:grid-cols-3">
+          <section className="grid gap-4 lg:grid-cols-4">
             <ContactQuickActions
               storeName={snap.storeName}
               contactName={client.contactName}
@@ -597,6 +600,14 @@ npx prisma migrate deploy`}
               monthlyFee={client.monthlyFee === null ? null : Number(client.monthlyFee)}
               renewalDay={client.renewalDay}
               variant="card"
+            />
+            <OnboardingChecklist
+              items={onboarding.map((item) => ({
+                id: item.id,
+                title: item.title,
+                description: item.description,
+                done: item.done
+              }))}
             />
             <NotesEditor clientId={dbClient.id} initial={client.notes} />
             <TaskList clientId={dbClient.id} tasks={taskDtos} />

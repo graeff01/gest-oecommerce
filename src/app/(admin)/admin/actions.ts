@@ -299,6 +299,33 @@ export async function deleteTaskAction(formData: FormData) {
 }
 
 // ── Snapshots ────────────────────────────────────────────────────────
+export async function toggleOnboardingItemAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Item invalido.");
+  const existing = await prisma.adminOnboardingItem.findUnique({
+    where: { id },
+    include: { client: { select: { key: true } } }
+  });
+  if (!existing) throw new Error("Item nao encontrado.");
+
+  await prisma.adminOnboardingItem.update({
+    where: { id },
+    data: {
+      done: !existing.done,
+      doneAt: existing.done ? null : new Date()
+    }
+  });
+
+  await auditAdminAction("ADMIN_ONBOARDING_TOGGLED", "AdminOnboardingItem", existing.id, {
+    clientKey: existing.client.key,
+    key: existing.key,
+    done: !existing.done
+  });
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/client/${existing.client.key}`);
+}
+
 export async function captureAllSnapshotsAction() {
   await captureAllSnapshots();
   await auditAdminAction("ADMIN_SNAPSHOTS_CAPTURED", "AdminClientSnapshot");

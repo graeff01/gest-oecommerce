@@ -25,6 +25,7 @@ import {
   Receipt,
   Search,
   ScrollText,
+  Server,
   ShieldAlert,
   ShoppingBag,
   Sparkles,
@@ -768,6 +769,12 @@ export default async function AdminDashboard({
                   className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-[0.82rem] font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
                 >
                   <ScrollText size={13} /> Auditoria
+                </Link>
+                <Link
+                  href="/admin/status"
+                  className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-[0.82rem] font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
+                >
+                  <Server size={13} /> Status
                 </Link>
                 <form action="/api/admin/logout" method="POST">
                   <button

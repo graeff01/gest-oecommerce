@@ -309,6 +309,8 @@ model AdminClient {
   updatedAt     DateTime              @updatedAt
   tasks         AdminTask[]
   snapshots     AdminClientSnapshot[]
+  onboarding    AdminOnboardingItem[]
+  backups       AdminBackupRun[]
 
   @@index([status])
   @@index([plan])
@@ -331,6 +333,23 @@ model AdminTask {
   @@index([dueDate])
 }
 
+model AdminOnboardingItem {
+  id          String      @id @default(cuid())
+  clientId    String
+  key         String
+  title       String
+  description String?
+  done        Boolean     @default(false)
+  doneAt      DateTime?
+  order       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  client      AdminClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, key])
+  @@index([clientId, done])
+}
+
 model AdminClientSnapshot {
   id              String      @id @default(cuid())
   clientId        String
@@ -350,6 +369,22 @@ model AdminClientSnapshot {
 
   @@index([clientId, capturedAt])
   @@index([capturedAt])
+}
+
+model AdminBackupRun {
+  id          String      @id @default(cuid())
+  clientId    String
+  startedAt   DateTime    @default(now())
+  finishedAt  DateTime?
+  status      String
+  sizeBytes   Int?
+  itemCounts  Json?
+  error       String?
+  triggeredBy String?
+  client      AdminClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, startedAt])
+  @@index([status])
 }
 
 model MasterAdminUser {

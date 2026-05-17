@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_COOKIE, getAdminSessionFromToken, verifyAdminCronSecret } from "@/lib/admin-auth";
 import { fetchAllClients } from "@/lib/admin-clients";
+import { sendAdminAlert } from "@/lib/admin-alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,17 @@ export async function GET(req: Request) {
     const online = clients.filter((client) => client.online).length;
     const critical = clients.reduce((sum, client) => sum + client.alerts.filter((alert) => alert.level === "critical").length, 0);
 
+    const ok = critical === 0 && online === clients.length;
+    if (!ok && req.headers.get("x-send-alert") === "1") {
+      await sendAdminAlert({
+        title: "Status do sistema requer atencao",
+        message: `${clients.length - online} cliente(s) offline e ${critical} alerta(s) critico(s).`,
+        level: critical > 0 ? "critical" : "warning"
+      });
+    }
+
     return NextResponse.json({
-      ok: critical === 0 && online === clients.length,
+      ok,
       at: new Date().toISOString(),
       latencyMs: Date.now() - startedAt,
       masterDb: "ok",
