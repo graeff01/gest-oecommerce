@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { ArrowLeft, ScrollText, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_COOKIE, getAdminSessionFromToken } from "@/lib/admin-auth";
@@ -25,12 +26,30 @@ function formatMetadata(value: unknown) {
   }
 }
 
-export default async function AdminAuditPage() {
+export default async function AdminAuditPage({
+  searchParams
+}: {
+  searchParams: Promise<{ q?: string; action?: string; entity?: string }>;
+}) {
   const cookieStore = await cookies();
   const session = getAdminSessionFromToken(cookieStore.get(ADMIN_COOKIE)?.value);
   if (!session) redirect("/admin/login");
 
+  const { q, action, entity } = await searchParams;
+  const where: Prisma.AuditLogWhereInput = {};
+  if (action?.trim()) where.action = { contains: action.trim(), mode: "insensitive" };
+  if (entity?.trim()) where.entity = { contains: entity.trim(), mode: "insensitive" };
+  if (q?.trim()) {
+    const term = q.trim();
+    where.OR = [
+      { action: { contains: term, mode: "insensitive" } },
+      { entity: { contains: term, mode: "insensitive" } },
+      { entityId: { contains: term, mode: "insensitive" } }
+    ];
+  }
+
   const logs = await prisma.auditLog.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     take: 120,
     include: {
@@ -67,6 +86,22 @@ export default async function AdminAuditPage() {
             </div>
           </div>
         </header>
+
+        <form className="grid gap-3 rounded-2xl border border-border bg-surface p-4 shadow-soft md:grid-cols-[1fr_180px_180px_auto] md:items-end">
+          <label className="label">
+            Buscar
+            <input className="field h-10" name="q" defaultValue={q ?? ""} placeholder="cliente, entidade ou acao" />
+          </label>
+          <label className="label">
+            Acao
+            <input className="field h-10" name="action" defaultValue={action ?? ""} placeholder="UPDATED" />
+          </label>
+          <label className="label">
+            Entidade
+            <input className="field h-10" name="entity" defaultValue={entity ?? ""} placeholder="AdminClient" />
+          </label>
+          <button className="button-primary h-10 px-4 py-0">Filtrar</button>
+        </form>
 
         <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-soft">
           <div className="grid grid-cols-[150px_1fr_160px_140px] gap-3 border-b border-border bg-surface-2/60 px-4 py-3 text-[0.68rem] font-bold uppercase tracking-widest text-subtle">

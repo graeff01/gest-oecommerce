@@ -19,6 +19,10 @@ function getAdminSecret() {
   return process.env.ADMIN_SECRET ?? "";
 }
 
+export function allowsLegacyAdminSecret() {
+  return process.env.DISABLE_ADMIN_SECRET_FALLBACK !== "1";
+}
+
 function getSigningSecret() {
   return process.env.AUTH_SECRET || process.env.ADMIN_SECRET || "dev-admin-session-secret";
 }
@@ -109,7 +113,7 @@ export function getAdminSessionFromToken(token?: string | null): AdminSession | 
 
   // Backward compatibility: older deployments stored ADMIN_SECRET directly.
   // The next login replaces it with a signed token.
-  if (getAdminSecret() && safeEqual(token, getAdminSecret())) {
+  if (allowsLegacyAdminSecret() && getAdminSecret() && safeEqual(token, getAdminSecret())) {
     return {
       id: "legacy-admin",
       email: "legacy@admin.local",

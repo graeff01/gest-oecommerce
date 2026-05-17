@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import {
   ADMIN_COOKIE,
+  allowsLegacyAdminSecret,
   createAdminSessionToken,
   verifyAdminPassword,
   verifyMasterAdminCredentials
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     ? await verifyMasterAdminCredentials(String(email), String(password))
     : null;
 
-  const legacySession = !session && verifyAdminPassword(String(secret || password))
+  const legacySession = !session && allowsLegacyAdminSecret() && verifyAdminPassword(String(secret || password))
     ? {
         id: "legacy-admin",
         email: "legacy@admin.local",

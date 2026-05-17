@@ -1,0 +1,54 @@
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { ADMIN_COOKIE, getAdminSessionFromToken, verifyAdminCronSecret } from "@/lib/admin-auth";
+import { fetchAllClients } from "@/lib/admin-clients";
+
+export const dynamic = "force-dynamic";
+
+async function authorize(req: Request) {
+  const cookieStore = await cookies();
+  const session = getAdminSessionFromToken(cookieStore.get(ADMIN_COOKIE)?.value);
+  if (session) return true;
+
+  const url = new URL(req.url);
+  return verifyAdminCronSecret(req.headers.get("x-admin-secret")) || verifyAdminCronSecret(url.searchParams.get("secret"));
+}
+
+export async function GET(req: Request) {
+  if (!(await authorize(req))) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  const startedAt = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const clients = await fetchAllClients();
+    const online = clients.filter((client) => client.online).length;
+    const critical = clients.reduce((sum, client) => sum + client.alerts.filter((alert) => alert.level === "critical").length, 0);
+
+    return NextResponse.json({
+      ok: critical === 0 && online === clients.length,
+      at: new Date().toISOString(),
+      latencyMs: Date.now() - startedAt,
+      masterDb: "ok",
+      clients: {
+        total: clients.length,
+        online,
+        offline: clients.length - online,
+        criticalAlerts: critical
+      }
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        ok: false,
+        at: new Date().toISOString(),
+        latencyMs: Date.now() - startedAt,
+        masterDb: "error",
+        error: err instanceof Error ? err.message : "unknown"
+      },
+      { status: 500 }
+    );
+  }
+}
