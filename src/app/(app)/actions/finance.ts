@@ -59,6 +59,24 @@ export async function deleteFinancialTransactionAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function markFinancialTransactionPaidAction(formData: FormData) {
+  const user = await requireRole(["ADMIN", "FINANCE"]);
+  const { id } = z.object({ id: z.string().min(1) }).parse(Object.fromEntries(formData));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.financialTransaction.update({
+      where: { id },
+      data: { paidAt: new Date() }
+    });
+    await tx.auditLog.create({
+      data: { userId: user.id, action: "MARK_TRANSACTION_PAID", entity: "FinancialTransaction", entityId: id }
+    });
+  });
+
+  revalidatePath("/financeiro");
+  revalidatePath("/");
+}
+
 export async function cancelPurchaseAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "STOCK"]);
   const { id } = z.object({ id: z.string().min(1) }).parse(Object.fromEntries(formData));

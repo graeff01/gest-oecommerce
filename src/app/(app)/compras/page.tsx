@@ -5,6 +5,7 @@ import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
 import { PurchaseForm } from "@/components/purchase-form";
 import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
+import { SmartPurchasePanel, type SmartPurchaseItem } from "@/components/smart-purchase-panel";
 import { date, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cancelPurchaseAction } from "../actions/finance";
@@ -14,7 +15,10 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
   const { q } = await searchParams;
   const search = q?.trim() ?? "";
 
-  const [purchases, suppliers, variants] = await Promise.all([
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [purchases, suppliers, variants, recentItems] = await Promise.all([
     prisma.purchase.findMany({
       where: search ? {
         OR: [
@@ -26,8 +30,49 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
       orderBy: { createdAt: "desc" }
     }),
     prisma.supplier.findMany({ orderBy: { name: "asc" } }),
-    prisma.productVariant.findMany({ include: { product: true }, orderBy: { sku: "asc" } })
+    prisma.productVariant.findMany({ include: { product: true }, orderBy: { sku: "asc" } }),
+    prisma.orderItem.findMany({
+      where: {
+        variantId: { not: null },
+        order: { status: { not: "CANCELED" }, createdAt: { gte: thirtyDaysAgo } }
+      },
+      select: { variantId: true, quantity: true }
+    })
   ]);
+
+  const sold30 = new Map<string, number>();
+  for (const item of recentItems) {
+    if (!item.variantId) continue;
+    sold30.set(item.variantId, (sold30.get(item.variantId) ?? 0) + item.quantity);
+  }
+
+  const smartPurchaseItems: SmartPurchaseItem[] = variants.map((variant) => {
+    const sold = sold30.get(variant.id) ?? 0;
+    const suggestedQty = Math.max(0, Math.ceil((sold / 30) * 21) - variant.stockQuantity, variant.minStock * 2 - variant.stockQuantity);
+    const status: SmartPurchaseItem["status"] =
+      variant.stockQuantity <= variant.minStock && (sold > 0 || variant.stockQuantity === 0)
+        ? "buy"
+        : sold > 0
+          ? "watch"
+          : variant.stockQuantity > variant.minStock
+            ? "avoid"
+            : "watch";
+    return {
+      variantId: variant.id,
+      productName: variant.product.name,
+      sku: variant.sku,
+      color: variant.color,
+      size: variant.size,
+      stock: variant.stockQuantity,
+      minStock: variant.minStock,
+      sold30: sold,
+      suggestedQty: Math.max(1, suggestedQty),
+      status
+    };
+  }).sort((a, b) => {
+    const rank = { buy: 3, watch: 2, avoid: 1 };
+    return rank[b.status] - rank[a.status] || b.sold30 - a.sold30 || a.stock - b.stock;
+  });
 
   return (
     <AnimatedShell className="grid gap-6">
@@ -35,6 +80,8 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
         title="Compras"
         description="Área preparada para compras de fornecedor, recebimento e entrada automática de mercadoria."
       />
+      <SmartPurchasePanel items={smartPurchaseItems} />
+
       <section className="grid items-start gap-5 xl:grid-cols-[.72fr_1.28fr]">
         <ResponsiveFormPanel title="Nova compra">
           <PurchaseForm suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))} variants={variants.map((v) => ({ id: v.id, sku: v.sku, color: v.color, size: v.size, stockQuantity: v.stockQuantity, productName: v.product.name }))} />

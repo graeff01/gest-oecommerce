@@ -1,10 +1,11 @@
-import { CalendarDays, Clock, TrendingDown, Users, Wallet } from "lucide-react";
+import { CalendarDays, Clock, MessageCircle, TrendingDown, Users, Wallet } from "lucide-react";
 import { InstallmentsTable } from "@/components/installments-table";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
 import { money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { buildCollectionMessage, whatsappUrl } from "@/lib/whatsapp";
 
 function sumDecimal(values: number[]): number {
   // soma centavo a centavo para evitar erros de ponto flutuante
@@ -63,6 +64,14 @@ export default async function CreditPage() {
 
   // clientes únicos com dívida
   const debtorCount = new Set(openInstallments.map((i) => i.customerName)).size;
+  const collectionQueue = [
+    ...overdueInstallments.map((item) => ({ ...item, tone: "danger" as const, label: "Vencida" })),
+    ...todayInstallments.map((item) => ({ ...item, tone: "warning" as const, label: "Vence hoje" })),
+    ...openInstallments
+      .filter((item) => !overdueInstallments.some((overdue) => overdue.id === item.id) && !todayInstallments.some((todayItem) => todayItem.id === item.id))
+      .slice(0, 4)
+      .map((item) => ({ ...item, tone: "primary" as const, label: "Proxima" }))
+  ].slice(0, 6);
 
   // próximo vencimento (futuro mais próximo)
   const nextDue = openInstallments.find((i) => {
@@ -167,6 +176,54 @@ export default async function CreditPage() {
           </div>
         </div>
       </section>
+
+      {collectionQueue.length > 0 && (
+        <section className="surface-card overflow-hidden">
+          <div className="border-b border-border p-5">
+            <p className="eyebrow">Rotina de cobranca</p>
+            <h2 className="mt-1 font-display text-lg font-semibold tracking-tight text-fg">Quem chamar agora</h2>
+            <p className="mt-1 text-[0.8rem] text-muted">Prioridade automatica por atraso e vencimento do dia.</p>
+          </div>
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 xl:p-5">
+            {collectionQueue.map((item) => {
+              const message = buildCollectionMessage({
+                customerName: item.customerName,
+                amount: item.amount,
+                dueDate: item.dueDate,
+                reference: item.orderCode
+              });
+              const href = whatsappUrl(item.customerPhone, message);
+              return (
+                <article key={item.id} className="rounded-xl border border-border bg-surface-2/35 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className={item.tone === "danger" ? "status-pill pill-danger" : item.tone === "warning" ? "status-pill pill-warning" : "status-pill pill-primary"}>
+                        {item.label}
+                      </span>
+                      <h3 className="mt-2 truncate font-display text-base font-semibold text-fg">{item.customerName}</h3>
+                      <p className="mt-1 text-[0.78rem] text-muted">{item.orderCode} · {item.sequence}/{item.totalCount}</p>
+                    </div>
+                    <p className="shrink-0 text-right font-display text-lg font-semibold text-fg">{money(item.amount)}</p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+                    {href ? (
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-success/25 bg-success-soft px-3 text-[0.78rem] font-semibold text-success">
+                        <MessageCircle size={14} />
+                        Cobrar
+                      </a>
+                    ) : (
+                      <span className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-surface px-3 text-[0.78rem] font-semibold text-muted">Sem WhatsApp</span>
+                    )}
+                    <span className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-surface px-3 text-[0.78rem] font-semibold text-muted">
+                      {new Date(item.dueDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* agenda de recebimentos */}
       {scheduleEntries.length > 0 && (

@@ -4,13 +4,15 @@ import { DeleteButton } from "@/components/delete-button";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { FinanceForm } from "@/components/finance-form";
+import { FinanceMobileList } from "@/components/finance-mobile-list";
 import { MetricCard } from "@/components/metric-card";
+import { MonthlyClosing } from "@/components/monthly-closing";
 import { PageHeader } from "@/components/page-header";
 import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { date, money, startOfDayBRT, endOfDayBRT } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings, DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
-import { deleteFinancialTransactionAction } from "../actions/finance";
+import { deleteFinancialTransactionAction, markFinancialTransactionPaidAction } from "../actions/finance";
 
 const FIN_PAGE_SIZE = 30;
 
@@ -44,7 +46,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     orderBy: { category: "asc" }
   });
 
-  const [totals, totalCount, transactions] = await Promise.all([
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0, 0);
+
+  const [totals, totalCount, transactions, monthOrders, stockVariants, openInstallments] = await Promise.all([
     prisma.financialTransaction.groupBy({
       by: ["type"],
       where: dateFilter,
@@ -56,12 +60,28 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * FIN_PAGE_SIZE,
       take: FIN_PAGE_SIZE
-    })
+    }),
+    prisma.order.findMany({
+      where: { createdAt: { gte: monthStart }, status: { not: "CANCELED" } },
+      include: { items: true }
+    }),
+    prisma.productVariant.findMany({ select: { stockQuantity: true, costPrice: true } }),
+    prisma.installment.findMany({ where: { paidAt: null }, select: { amount: true, dueDate: true } })
   ]);
 
   const revenue = Number(totals.find((t) => t.type === "REVENUE")?._sum.amount ?? 0);
   const expenses = Number(totals.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
   const balance = revenue - expenses;
+  const monthRevenue = monthOrders.reduce((sum, order) => sum + Number(order.total), 0);
+  const productCost = monthOrders.flatMap((order) => order.items).reduce((sum, item) => sum + Number(item.costPrice) * item.quantity, 0);
+  const stockValue = stockVariants.reduce((sum, variant) => sum + Number(variant.costPrice) * variant.stockQuantity, 0);
+  const receivable = openInstallments.reduce((sum, installment) => sum + Number(installment.amount), 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const overdue = openInstallments
+    .filter((installment) => installment.dueDate < today)
+    .reduce((sum, installment) => sum + Number(installment.amount), 0);
+  const profit = monthRevenue - productCost - expenses;
 
   return (
     <AnimatedShell className="grid gap-6">
@@ -81,6 +101,16 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           tone="primary"
         />
       </section>
+
+      <MonthlyClosing
+        revenue={monthRevenue}
+        expenses={expenses}
+        productCost={productCost}
+        stockValue={stockValue}
+        receivable={receivable}
+        overdue={overdue}
+        profit={profit}
+      />
 
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
         <label className="label w-full min-w-[120px] flex-1 sm:w-auto">
@@ -120,7 +150,19 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </ResponsiveFormPanel>
 
         <div>
-          <div className="table-shell max-h-[28rem] lg:max-h-[36rem] xl:max-h-[calc(100vh-13rem)]">
+          <FinanceMobileList
+            transactions={transactions.map((item) => ({
+              id: item.id,
+              type: item.type,
+              title: item.title,
+              category: item.category,
+              amount: Number(item.amount),
+              paidAt: item.paidAt?.toISOString() ?? null,
+              dueDate: item.dueDate?.toISOString() ?? null
+            }))}
+          />
+
+          <div className="table-shell hidden max-h-[28rem] md:block lg:max-h-[36rem] xl:max-h-[calc(100vh-13rem)]">
             <table className="data-table">
               <thead>
                 <tr>
@@ -150,10 +192,18 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                       <td className="whitespace-nowrap text-muted">{date(item.paidAt)}</td>
                       <td className="whitespace-nowrap text-muted">{date(item.dueDate)}</td>
                       <td>
-                        <form action={deleteFinancialTransactionAction}>
-                          <input type="hidden" name="id" value={item.id} />
-                          <DeleteButton label="Excluir" confirmMessage="Excluir este lançamento financeiro? Esta ação não pode ser desfeita." />
-                        </form>
+                        <div className="flex items-center gap-2">
+                          {!item.paidAt ? (
+                            <form action={markFinancialTransactionPaidAction}>
+                              <input type="hidden" name="id" value={item.id} />
+                              <button className="h-7 rounded-lg bg-success-soft px-2 text-xs font-semibold text-success">Pago</button>
+                            </form>
+                          ) : null}
+                          <form action={deleteFinancialTransactionAction}>
+                            <input type="hidden" name="id" value={item.id} />
+                            <DeleteButton label="Excluir" confirmMessage="Excluir este lançamento financeiro? Esta ação não pode ser desfeita." />
+                          </form>
+                        </div>
                       </td>
                     </tr>
                   ))
