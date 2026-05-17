@@ -1,10 +1,12 @@
 import { connection } from "next/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
   ArrowDownRight,
+  ArrowRight,
   ArrowUpRight,
   Banknote,
   Building2,
@@ -18,6 +20,7 @@ import {
   Gauge,
   Heart,
   Info,
+  ListTodo,
   LogOut,
   Receipt,
   Search,
@@ -35,7 +38,14 @@ import {
 import { AdminClientPlan, AdminClientStatus } from "@prisma/client";
 import { fetchAllClients, ClientSnapshot, Alert } from "@/lib/admin-clients";
 import { prisma } from "@/lib/prisma";
+import { getTaskCountsByClient } from "@/lib/admin-tasks";
 import { AdminFormDialog } from "@/components/admin-form-dialog";
+import { AutoRefresh } from "@/components/admin/AutoRefresh";
+import { TvMode } from "@/components/admin/TvMode";
+import { CommandPalette } from "@/components/admin/CommandPalette";
+import { ContactQuickActions } from "@/components/admin/ContactQuickActions";
+import { CaptureAllSnapshotsButton } from "@/components/admin/CaptureSnapshotButton";
+import { PrintButton } from "@/components/admin/PrintButton";
 import {
   createAdminClientAction,
   deleteAdminClientAction,
@@ -180,6 +190,9 @@ function ClientForm({
     monthlyFee: unknown;
     renewalDay: number | null;
     notes: string | null;
+    contactName: string | null;
+    contactPhone: string | null;
+    contactEmail: string | null;
   };
 }) {
   return (
@@ -209,6 +222,25 @@ function ClientForm({
         DATABASE_URL do cliente
         <textarea className="field min-h-20 font-mono text-xs" name="databaseUrl" defaultValue={client?.databaseUrl ?? ""} required />
       </label>
+
+      <div className="rounded-xl border border-border bg-surface-2/30 p-3">
+        <p className="mb-2 text-[0.62rem] font-bold uppercase tracking-widest text-subtle">Contato (libera WhatsApp e e-mail no painel)</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="label">
+            Nome do contato
+            <input className="field" name="contactName" defaultValue={client?.contactName ?? ""} placeholder="Joao Silva" />
+          </label>
+          <label className="label">
+            Telefone (DDI+DDD+numero)
+            <input className="field" name="contactPhone" defaultValue={client?.contactPhone ?? ""} placeholder="5547999998888" />
+          </label>
+          <label className="label">
+            E-mail
+            <input className="field" name="contactEmail" defaultValue={client?.contactEmail ?? ""} placeholder="contato@cliente.com" />
+          </label>
+        </div>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="label">
           Status
@@ -250,12 +282,14 @@ function ClientCard({
   client,
   dbClient,
   mrr,
-  health
+  health,
+  taskCount
 }: {
   client: ClientSnapshot;
   dbClient?: Awaited<ReturnType<typeof prisma.adminClient.findMany>>[number];
   mrr: number;
   health: number;
+  taskCount?: { open: number; overdue: number };
 }) {
   const criticalAlerts = client.alerts.filter((a) => a.level === "critical").length;
   const hasCritical = criticalAlerts > 0 || !client.online || client.status === "SUSPENDED";
@@ -308,6 +342,26 @@ function ClientCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-1.5 lg:justify-end">
+          {taskCount && taskCount.open > 0 && (
+            <Link
+              href={`/admin/client/${client.key}`}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition ${
+                taskCount.overdue > 0
+                  ? "border-danger/30 bg-danger-soft/60 text-danger"
+                  : "border-primary/30 bg-primary-soft/60 text-primary"
+              }`}
+              title={taskCount.overdue ? `${taskCount.overdue} tarefa(s) atrasada(s)` : `${taskCount.open} tarefa(s) aberta(s)`}
+            >
+              <ListTodo size={11} /> {taskCount.open}
+              {taskCount.overdue > 0 && <span className="font-bold">!</span>}
+            </Link>
+          )}
+          <Link
+            href={`/admin/client/${client.key}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary-soft/60 px-3 text-xs font-bold text-primary transition hover:bg-primary-soft"
+          >
+            Detalhes <ArrowRight size={11} />
+          </Link>
           {client.appUrl ? (
             <a href={client.appUrl} target="_blank" rel="noreferrer" className="button-secondary h-8 gap-1.5 px-3 py-0 text-xs">
               <ExternalLink size={12} /> Abrir
@@ -326,6 +380,20 @@ function ClientCard({
           ) : null}
         </div>
       </div>
+
+      {dbClient && (dbClient.contactPhone || dbClient.contactEmail) && (
+        <div className="mx-4 ml-5 mb-3">
+          <ContactQuickActions
+            storeName={client.storeName}
+            contactName={dbClient.contactName}
+            contactPhone={dbClient.contactPhone}
+            contactEmail={dbClient.contactEmail}
+            monthlyFee={client.monthlyFee}
+            renewalDay={client.renewalDay}
+            variant="row"
+          />
+        </div>
+      )}
 
       {!client.online && (
         <div className="mx-4 ml-5 mb-3 rounded-xl border border-danger/20 bg-danger-soft/60 px-3 py-2 text-[0.74rem] font-medium text-danger">
@@ -408,10 +476,11 @@ export default async function AdminDashboard({
     redirect("/admin/login");
   }
 
-  const [{ q, status, plan }, clients, dbClients] = await Promise.all([
+  const [{ q, status, plan }, clients, dbClients, taskCounts] = await Promise.all([
     searchParams,
     fetchAllClients(),
-    prisma.adminClient.findMany({ orderBy: [{ status: "asc" }, { name: "asc" }] }).catch(() => [])
+    prisma.adminClient.findMany({ orderBy: [{ status: "asc" }, { name: "asc" }] }).catch(() => []),
+    getTaskCountsByClient().catch(() => new Map<string, { open: number; overdue: number }>())
   ]);
 
   const dbByKey = new Map(dbClients.map((c) => [c.key, c]));
@@ -653,7 +722,7 @@ export default async function AdminDashboard({
                 Aqui esta o pulso completo da operacao.
               </p>
 
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap items-center gap-2">
                 <AdminFormDialog
                   label="Novo cliente"
                   title="Novo cliente"
@@ -668,6 +737,21 @@ export default async function AdminDashboard({
                     </div>
                   </div>
                 </AdminFormDialog>
+                <CommandPalette
+                  clients={withHealth.map(({ client, health }) => ({
+                    key: client.key,
+                    storeName: client.storeName,
+                    name: client.name,
+                    appUrl: client.appUrl,
+                    health,
+                    online: client.online,
+                    alertCount: client.alertCount
+                  }))}
+                />
+                <CaptureAllSnapshotsButton />
+                <TvMode />
+                <AutoRefresh intervalMs={60000} />
+                <PrintButton />
                 <form action="/api/admin/logout" method="POST">
                   <button
                     type="submit"
@@ -1092,15 +1176,19 @@ export default async function AdminDashboard({
             </div>
           ) : (
             <div className="grid gap-3 2xl:grid-cols-2">
-              {sorted.map((c) => (
-                <ClientCard
-                  key={c.key}
-                  client={c}
-                  dbClient={dbByKey.get(c.key)}
-                  mrr={mrr}
-                  health={healthByKey.get(c.key) ?? 0}
-                />
-              ))}
+              {sorted.map((c) => {
+                const db = dbByKey.get(c.key);
+                return (
+                  <ClientCard
+                    key={c.key}
+                    client={c}
+                    dbClient={db}
+                    mrr={mrr}
+                    health={healthByKey.get(c.key) ?? 0}
+                    taskCount={db ? taskCounts.get(db.id) : undefined}
+                  />
+                );
+              })}
             </div>
           )}
         </section>

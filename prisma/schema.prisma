@@ -283,22 +283,64 @@ model StoreSettings {
 }
 
 model AdminClient {
-  id          String            @id @default(cuid())
-  key         String            @unique
-  name        String
-  storeName   String?
-  appUrl      String?
-  databaseUrl String
-  status      AdminClientStatus @default(TRIAL)
-  plan        AdminClientPlan   @default(STARTER)
-  monthlyFee  Decimal?          @db.Decimal(12, 2)
-  renewalDay  Int?
-  notes       String?
-  tags        String[]          @default([])
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id            String                @id @default(cuid())
+  key           String                @unique
+  name          String
+  storeName     String?
+  appUrl        String?
+  databaseUrl   String
+  status        AdminClientStatus     @default(TRIAL)
+  plan          AdminClientPlan       @default(STARTER)
+  monthlyFee    Decimal?              @db.Decimal(12, 2)
+  renewalDay    Int?
+  notes         String?
+  tags          String[]              @default([])
+  contactName   String?
+  contactPhone  String?
+  contactEmail  String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  tasks         AdminTask[]
+  snapshots     AdminClientSnapshot[]
 
   @@index([status])
   @@index([plan])
   @@index([createdAt])
+}
+
+model AdminTask {
+  id         String      @id @default(cuid())
+  clientId   String
+  title      String
+  done       Boolean     @default(false)
+  dueDate    DateTime?
+  priority   Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  client     AdminClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([done])
+  @@index([dueDate])
+}
+
+model AdminClientSnapshot {
+  id              String      @id @default(cuid())
+  clientId        String
+  capturedAt      DateTime    @default(now())
+  online          Boolean
+  salesLast7      Int         @default(0)
+  salesLast30     Int         @default(0)
+  totalCustomers  Int         @default(0)
+  newCustomers30  Int         @default(0)
+  totalProducts   Int         @default(0)
+  activeUsers     Int         @default(0)
+  totalUsers      Int         @default(0)
+  alertCount      Int         @default(0)
+  criticalCount   Int         @default(0)
+  healthScore     Int         @default(0)
+  client          AdminClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, capturedAt])
+  @@index([capturedAt])
 }

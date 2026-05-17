@@ -672,6 +672,77 @@ h1, h2, h3, h4, h5 {
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
+/* ──────────────────────────────────────────────────────────
+   TV MODE (apresentacao em tela cheia)
+   ────────────────────────────────────────────────────────── */
+html.tv-mode {
+  font-size: 18px;
+}
+html.tv-mode body {
+  background: rgb(8 6 22);
+  color: rgb(238 236 245);
+}
+html.tv-mode .surface-card,
+html.tv-mode aside,
+html.tv-mode article {
+  box-shadow: 0 12px 40px -16px rgb(0 0 0 / 0.6);
+}
+
+/* ──────────────────────────────────────────────────────────
+   PRINT - relatorio executivo
+   ────────────────────────────────────────────────────────── */
+@media print {
+  html, body {
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    min-height: 0 !important;
+    font-size: 11px;
+  }
+  body { background-image: none !important; }
+
+  .surface-card, article, header, section, aside {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border-color: #ccc !important;
+  }
+
+  header[style*="linear-gradient"] {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    color: black !important;
+  }
+  header[style*="linear-gradient"] * {
+    color: black !important;
+  }
+
+  /* Hide interactive elements */
+  button,
+  .button-primary,
+  .button-secondary,
+  form input,
+  form select,
+  form textarea,
+  [data-print-hide],
+  .react-resizable-handle {
+    display: none !important;
+  }
+
+  /* Force grids to single column for print */
+  .grid { display: block !important; }
+  .grid > * { margin-bottom: 8px !important; }
+
+  a { color: black !important; text-decoration: none !important; }
+
+  .text-gradient {
+    -webkit-text-fill-color: black !important;
+    color: black !important;
+    background: none !important;
+  }
+}
+
 /* keycap minimalista */
 .kbd {
   display: inline-flex;
