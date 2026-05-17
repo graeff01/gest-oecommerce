@@ -11,6 +11,7 @@ import {
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { DashboardGreeting } from "@/components/dashboard-greeting";
+import { DailyCommandCenter } from "@/components/daily-command-center";
 import { MetricCard } from "@/components/metric-card";
 import { SalesChart } from "@/components/sales-chart";
 import { getSession } from "@/lib/auth";
@@ -24,7 +25,7 @@ export default async function DashboardPage() {
   const userName = user ? firstName(user.name) : "";
 
   return (
-    <AnimatedShell className="grid gap-4 xl:h-full xl:min-h-0 xl:grid-rows-[auto_auto_1fr] xl:overflow-hidden">
+    <AnimatedShell className="grid gap-4">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="eyebrow">Visão geral</p>
@@ -65,6 +66,14 @@ export default async function DashboardPage() {
           tone="warning"
         />
       </section>
+
+      <DailyCommandCenter
+        actions={data.central.actions}
+        onboarding={data.central.onboarding}
+        stagnantProducts={data.central.campaigns.stagnantProducts}
+        bestSellers={data.central.campaigns.bestSellers}
+        inactiveCustomers={data.central.campaigns.inactiveCustomers}
+      />
 
       <section className="grid gap-4 xl:min-h-0 xl:grid-cols-[1fr_340px]">
         <div className="grid gap-4 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
