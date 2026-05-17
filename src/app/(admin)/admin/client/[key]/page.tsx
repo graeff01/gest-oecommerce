@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import type { AdminClientPlan, AdminClientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { fetchClientSnapshot } from "@/lib/admin-clients";
+import { fetchClientSnapshot, findAdminClientConfig } from "@/lib/admin-clients";
 import { fetchClientDetail } from "@/lib/admin-client-detail";
 import { getClientSnapshotHistory } from "@/lib/admin-snapshots";
 import { getTasksForClient } from "@/lib/admin-tasks";
@@ -102,9 +102,9 @@ export default async function ClientDetailPage({
   }
 
   const { key } = await params;
-  let client;
+  let dbClient;
   try {
-    client = await prisma.adminClient.findUnique({ where: { key } });
+    dbClient = await prisma.adminClient.findUnique({ where: { key } });
   } catch (err) {
     // Most common cause: migration `20260516000001_admin_crm_tasks_snapshots`
     // not yet applied (contactName / contactPhone / contactEmail columns absent).
@@ -152,26 +152,51 @@ npx prisma migrate deploy`}
       </div>
     );
   }
-  if (!client) notFound();
+
+  const config = dbClient
+    ? {
+        id: dbClient.id,
+        key: dbClient.key,
+        name: dbClient.name,
+        storeName: dbClient.storeName,
+        appUrl: dbClient.appUrl,
+        url: dbClient.databaseUrl,
+        status: dbClient.status,
+        plan: dbClient.plan,
+        monthlyFee: dbClient.monthlyFee === null ? null : Number(dbClient.monthlyFee),
+        renewalDay: dbClient.renewalDay,
+        notes: dbClient.notes,
+        source: "database" as const
+      }
+    : await findAdminClientConfig(key);
+
+  if (!config) notFound();
+
+  const client = {
+    id: dbClient?.id ?? "",
+    key: config.key,
+    name: config.name,
+    storeName: config.storeName ?? config.name,
+    appUrl: config.appUrl ?? null,
+    databaseUrl: config.url,
+    status: config.status ?? ("ACTIVE" as AdminClientStatus),
+    plan: config.plan ?? ("STARTER" as AdminClientPlan),
+    monthlyFee: config.monthlyFee ?? null,
+    renewalDay: config.renewalDay ?? null,
+    notes: dbClient?.notes ?? config.notes ?? null,
+    contactName: dbClient?.contactName ?? null,
+    contactPhone: dbClient?.contactPhone ?? null,
+    contactEmail: dbClient?.contactEmail ?? null,
+    createdAt: dbClient?.createdAt ?? new Date(),
+    updatedAt: dbClient?.updatedAt ?? new Date(),
+    source: config.source ?? "env"
+  };
 
   const [snap, detail, history, tasks] = await Promise.all([
-    fetchClientSnapshot({
-      id: client.id,
-      key: client.key,
-      name: client.name,
-      storeName: client.storeName,
-      appUrl: client.appUrl,
-      url: client.databaseUrl,
-      status: client.status,
-      plan: client.plan,
-      monthlyFee: client.monthlyFee === null ? null : Number(client.monthlyFee),
-      renewalDay: client.renewalDay,
-      notes: client.notes,
-      source: "database"
-    }),
+    fetchClientSnapshot(config),
     fetchClientDetail(client.databaseUrl),
-    getClientSnapshotHistory(client.id, 30).catch(() => []),
-    getTasksForClient(client.id)
+    dbClient ? getClientSnapshotHistory(dbClient.id, 30).catch(() => []) : Promise.resolve([]),
+    dbClient ? getTasksForClient(dbClient.id) : Promise.resolve([])
   ]);
 
   const criticalCount = snap.alerts.filter((a) => a.level === "critical").length;
@@ -267,7 +292,7 @@ npx prisma migrate deploy`}
                     <ExternalLink size={13} /> Abrir sistema
                   </a>
                 )}
-                <CaptureClientSnapshotButton clientId={client.id} />
+                {dbClient ? <CaptureClientSnapshotButton clientId={dbClient.id} /> : null}
               </div>
             </div>
 
@@ -563,19 +588,34 @@ npx prisma migrate deploy`}
         )}
 
         {/* ── CONTACT + NOTES + TASKS ──────────────────────────────── */}
-        <section className="grid gap-4 lg:grid-cols-3">
-          <ContactQuickActions
-            storeName={snap.storeName}
-            contactName={client.contactName}
-            contactPhone={client.contactPhone}
-            contactEmail={client.contactEmail}
-            monthlyFee={client.monthlyFee === null ? null : Number(client.monthlyFee)}
-            renewalDay={client.renewalDay}
-            variant="card"
-          />
-          <NotesEditor clientId={client.id} initial={client.notes} />
-          <TaskList clientId={client.id} tasks={taskDtos} />
-        </section>
+        {dbClient ? (
+          <section className="grid gap-4 lg:grid-cols-3">
+            <ContactQuickActions
+              storeName={snap.storeName}
+              contactName={client.contactName}
+              contactPhone={client.contactPhone}
+              contactEmail={client.contactEmail}
+              monthlyFee={client.monthlyFee === null ? null : Number(client.monthlyFee)}
+              renewalDay={client.renewalDay}
+              variant="card"
+            />
+            <NotesEditor clientId={dbClient.id} initial={client.notes} />
+            <TaskList clientId={dbClient.id} tasks={taskDtos} />
+          </section>
+        ) : (
+          <section className="rounded-2xl border border-warning/25 bg-warning-soft/35 p-5 shadow-soft">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warning" />
+              <div>
+                <h3 className="font-display text-sm font-bold tracking-tight text-fg">Cliente vindo do ADMIN_CLIENTS</h3>
+                <p className="mt-1 text-[0.82rem] text-muted">
+                  O detalhe operacional funciona, mas CRM, tarefas, notas e snapshots historicos ficam disponiveis
+                  quando esse cliente tambem estiver cadastrado no banco master.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ── METADATA ─────────────────────────────────────────────── */}
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-soft">

@@ -284,6 +284,15 @@ async function fetchDatabaseClientConfigs(): Promise<ClientConfig[]> {
   }
 }
 
+export async function findAdminClientConfig(key: string): Promise<ClientConfig | null> {
+  const databaseClients = await fetchDatabaseClientConfigs();
+  const databaseClient = databaseClients.find((client) => client.key === key);
+  if (databaseClient) return databaseClient;
+
+  const envClient = envClientsConfig.find((client) => client.key === key);
+  return envClient ? { ...envClient, source: "env" } : null;
+}
+
 export async function fetchAllClients(): Promise<ClientSnapshot[]> {
   const databaseClients = await fetchDatabaseClientConfigs();
   const envClients = envClientsConfig.map((client) => ({ ...client, source: "env" as const }));
