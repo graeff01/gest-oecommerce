@@ -2,6 +2,7 @@ import { Download, UsersRound } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { CustomerOrdersRow } from "@/components/customer-orders-row";
+import { CustomerWhatsAppCenter, type CustomerWhatsAppOpportunity } from "@/components/customer-whatsapp-center";
 import { PageHeader } from "@/components/page-header";
 import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { money } from "@/lib/format";
@@ -57,6 +58,32 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     };
   });
 
+  const now = new Date();
+  const whatsappOpportunities: CustomerWhatsAppOpportunity[] = rows.map((customer) => {
+    const sortedOrders = [...customer.orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const lastOrder = sortedOrders[0] ?? null;
+    const originalCustomer = customers.find((c) => c.id === customer.id);
+    const openInstallments = originalCustomer?.orders
+      .flatMap((order) => order.installments.map((installment) => ({ ...installment, orderCode: order.code })))
+      .filter((installment) => !installment.paidAt)
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()) ?? [];
+    const daysInactive = lastOrder
+      ? Math.floor((now.getTime() - new Date(lastOrder.createdAt).getTime()) / 86_400_000)
+      : null;
+
+    return {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      debt: customer.debt,
+      nextDueDate: openInstallments[0]?.dueDate.toISOString() ?? null,
+      lastOrderCode: lastOrder?.code ?? openInstallments[0]?.orderCode ?? null,
+      lastOrderTotal: lastOrder?.total ?? null,
+      lastOrderAt: lastOrder?.createdAt ?? null,
+      daysInactive
+    };
+  });
+
   return (
     <AnimatedShell className="grid gap-6">
       <PageHeader
@@ -90,6 +117,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         </ResponsiveFormPanel>
 
         <div className="grid gap-3">
+          <CustomerWhatsAppCenter customers={whatsappOpportunities} />
+
           <form method="GET" className="grid gap-2 sm:flex">
             <input
               className="field flex-1"
