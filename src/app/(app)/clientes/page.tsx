@@ -2,7 +2,6 @@ import { Download, UsersRound } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { CustomerOrdersRow } from "@/components/customer-orders-row";
-import { CustomerWhatsAppCenter, type CustomerWhatsAppOpportunity } from "@/components/customer-whatsapp-center";
 import { PageHeader } from "@/components/page-header";
 import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { money } from "@/lib/format";
@@ -26,7 +25,23 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     include: {
       orders: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, code: true, status: true, total: true, createdAt: true, channel: true, paymentMethod: true, installments: true }
+        select: {
+          id: true,
+          code: true,
+          status: true,
+          total: true,
+          createdAt: true,
+          channel: true,
+          paymentMethod: true,
+          installments: true,
+          items: {
+            select: {
+              quantity: true,
+              label: true,
+              variant: { select: { product: { select: { name: true } } } }
+            }
+          }
+        }
       }
     },
     orderBy: { createdAt: "desc" }
@@ -35,6 +50,21 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const rows = customers.map((c) => {
     const installments = c.orders.flatMap((o) => o.installments);
     const open = installments.filter((i) => !i.paidAt);
+    const sortedOrders = [...c.orders].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const lastOrder = sortedOrders[0] ?? null;
+    const openInstallments = c.orders
+      .flatMap((order) => order.installments.map((installment) => ({ ...installment, orderCode: order.code })))
+      .filter((installment) => !installment.paidAt)
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    const lastOrderItems = lastOrder?.items
+      .map((item) => item.variant?.product.name ?? item.label ?? "item")
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(", ") ?? null;
+    const daysInactive = lastOrder
+      ? Math.floor((Date.now() - lastOrder.createdAt.getTime()) / 86_400_000)
+      : null;
+
     return {
       id: c.id,
       name: c.name,
@@ -45,6 +75,11 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       notes: c.notes,
       totalSpent: c.orders.reduce((s, o) => s + Number(o.total), 0),
       debt: open.reduce((s, i) => s + Number(i.amount), 0),
+      nextDueDate: openInstallments[0]?.dueDate.toISOString() ?? null,
+      daysInactive,
+      lastOrderCode: lastOrder?.code ?? openInstallments[0]?.orderCode ?? null,
+      lastOrderTotal: lastOrder ? Number(lastOrder.total) : null,
+      lastOrderItems,
       ordersCount: c.orders.length,
       orders: c.orders.map((o) => ({
         id: o.id,
@@ -53,34 +88,13 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         total: Number(o.total),
         createdAt: o.createdAt.toISOString(),
         channel: o.channel,
-        paymentMethod: o.paymentMethod
+        paymentMethod: o.paymentMethod,
+        itemsLabel: o.items
+          .map((item) => item.variant?.product.name ?? item.label ?? "item")
+          .filter(Boolean)
+          .slice(0, 2)
+          .join(", ")
       }))
-    };
-  });
-
-  const now = new Date();
-  const whatsappOpportunities: CustomerWhatsAppOpportunity[] = rows.map((customer) => {
-    const sortedOrders = [...customer.orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const lastOrder = sortedOrders[0] ?? null;
-    const originalCustomer = customers.find((c) => c.id === customer.id);
-    const openInstallments = originalCustomer?.orders
-      .flatMap((order) => order.installments.map((installment) => ({ ...installment, orderCode: order.code })))
-      .filter((installment) => !installment.paidAt)
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()) ?? [];
-    const daysInactive = lastOrder
-      ? Math.floor((now.getTime() - new Date(lastOrder.createdAt).getTime()) / 86_400_000)
-      : null;
-
-    return {
-      id: customer.id,
-      name: customer.name,
-      phone: customer.phone,
-      debt: customer.debt,
-      nextDueDate: openInstallments[0]?.dueDate.toISOString() ?? null,
-      lastOrderCode: lastOrder?.code ?? openInstallments[0]?.orderCode ?? null,
-      lastOrderTotal: lastOrder?.total ?? null,
-      lastOrderAt: lastOrder?.createdAt ?? null,
-      daysInactive
     };
   });
 
@@ -117,8 +131,6 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         </ResponsiveFormPanel>
 
         <div className="grid gap-3">
-          <CustomerWhatsAppCenter customers={whatsappOpportunities} />
-
           <form method="GET" className="grid gap-2 sm:flex">
             <input
               className="field flex-1"

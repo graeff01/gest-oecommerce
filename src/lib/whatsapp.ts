@@ -11,11 +11,13 @@ type PostSaleMessageInput = {
   customerName: string;
   orderCode?: string;
   total?: number;
+  items?: string | null;
 };
 
 type RecoveryMessageInput = {
   customerName: string;
   daysInactive?: number | null;
+  lastPurchase?: string | null;
 };
 
 type ProductPromotionMessageInput = {
@@ -42,21 +44,26 @@ export function whatsappShareUrl(message: string) {
   return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
 
+function friendlyName(name: string) {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
 export function buildCollectionMessage(input: CollectionMessageInput) {
-  const due = input.dueDate ? ` com vencimento em ${date(input.dueDate)}` : "";
-  const reference = input.reference ? ` referente a ${input.reference}` : "";
-  return `Ola ${input.customerName}, tudo bem? Passando para lembrar que existe um valor em aberto de ${money(input.amount)}${reference}${due}. Se puder me dar um retorno, eu agradeco.`;
+  const due = input.dueDate ? `, que venceu/vai vencer em ${date(input.dueDate)}` : "";
+  const reference = input.reference ? ` do pedido ${input.reference}` : "";
+  return `Oi, ${friendlyName(input.customerName)}! Te chamando rapidinho sobre o valor de ${money(input.amount)}${reference}${due}. Me avisa por aqui quando conseguir acertar ou se preferir combinar outro dia.`;
 }
 
 export function buildPostSaleMessage(input: PostSaleMessageInput) {
-  const order = input.orderCode ? ` pelo pedido ${input.orderCode}` : "";
-  const total = typeof input.total === "number" ? ` no valor de ${money(input.total)}` : "";
-  return `Ola ${input.customerName}! Obrigado pela compra${order}${total}. Quando receber, me conta se deu tudo certo? Qualquer ajuste ou duvida pode me chamar por aqui.`;
+  const order = input.orderCode ? ` do pedido ${input.orderCode}` : "";
+  const items = input.items ? ` (${input.items})` : "";
+  return `Oi, ${friendlyName(input.customerName)}! Passando para saber se deu tudo certo com sua compra${order}${items}. Gostou das pecas? Se precisar trocar tamanho, tirar duvida ou quiser ver novidades parecidas, pode me chamar por aqui.`;
 }
 
 export function buildRecoveryMessage(input: RecoveryMessageInput) {
-  const gap = input.daysInactive && input.daysInactive > 0 ? ` Vi que ja faz ${input.daysInactive} dias desde sua ultima compra.` : "";
-  return `Ola ${input.customerName}, tudo bem?${gap} Separei algumas novidades que podem fazer sentido para voce. Quer que eu te envie as opcoes por aqui?`;
+  const gap = input.daysInactive && input.daysInactive > 0 ? ` Faz um tempinho que voce nao aparece por aqui` : "Faz um tempinho que nao falamos";
+  const last = input.lastPurchase ? ` desde aquela compra de ${input.lastPurchase}` : "";
+  return `Oi, ${friendlyName(input.customerName)}! ${gap}${last}. Chegou coisa nova e acho que tem algumas opcoes que combinam com voce. Quer que eu te mande umas fotos por aqui?`;
 }
 
 export function buildProductPromotionMessage(input: ProductPromotionMessageInput) {
