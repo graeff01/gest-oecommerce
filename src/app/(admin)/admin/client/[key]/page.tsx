@@ -31,6 +31,9 @@ import { NotesEditor } from "@/components/admin/NotesEditor";
 import { SalesChart, HealthHistoryChart } from "@/components/admin/SalesChart";
 import { CaptureClientSnapshotButton } from "@/components/admin/CaptureSnapshotButton";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const ADMIN_COOKIE = "gestao_admin_session";
 
 const STATUS_LABEL: Record<AdminClientStatus, string> = {
@@ -99,7 +102,56 @@ export default async function ClientDetailPage({
   }
 
   const { key } = await params;
-  const client = await prisma.adminClient.findUnique({ where: { key } });
+  let client;
+  try {
+    client = await prisma.adminClient.findUnique({ where: { key } });
+  } catch (err) {
+    // Most common cause: migration `20260516000001_admin_crm_tasks_snapshots`
+    // not yet applied (contactName / contactPhone / contactEmail columns absent).
+    return (
+      <div className="min-h-full">
+        <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-8">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-[0.78rem] font-semibold text-muted transition hover:text-primary"
+          >
+            <ArrowLeft size={13} /> Voltar
+          </Link>
+          <div className="rounded-2xl border border-danger/30 bg-danger-soft/30 p-6 shadow-soft">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-danger/15 text-danger">
+                <AlertTriangle size={18} />
+              </span>
+              <div>
+                <h2 className="font-display text-lg font-bold tracking-tight text-fg">
+                  Banco do painel master desatualizado
+                </h2>
+                <p className="text-[0.78rem] text-muted">
+                  A consulta de cliente falhou ao acessar colunas/tabelas novas.
+                </p>
+              </div>
+            </div>
+            <p className="mb-3 text-[0.86rem] text-fg/85">
+              Aplique a migration pendente no banco do <strong>painel master</strong> (nao no banco do cliente):
+            </p>
+            <pre className="overflow-x-auto rounded-xl border border-border bg-surface-2/40 p-3 text-[0.76rem] font-mono text-fg">
+{`# No servidor (Railway shell ou local com DATABASE_URL apontando pra prod):
+npx prisma migrate deploy`}
+            </pre>
+            <p className="mt-3 text-[0.78rem] text-muted">
+              Migration esperada: <code className="font-mono text-fg">20260516000001_admin_crm_tasks_snapshots</code>
+            </p>
+            <details className="mt-3 text-[0.74rem] text-muted">
+              <summary className="cursor-pointer font-semibold">Detalhes tecnicos</summary>
+              <pre className="mt-2 overflow-x-auto rounded-lg bg-surface-2/40 p-2 font-mono text-[0.72rem]">
+                {err instanceof Error ? err.message : String(err)}
+              </pre>
+            </details>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!client) notFound();
 
   const [snap, detail, history, tasks] = await Promise.all([
