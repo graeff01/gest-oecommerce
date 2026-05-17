@@ -5,23 +5,25 @@ import {
   Activity,
   AlertTriangle,
   Building2,
+  CalendarClock,
   CheckCircle2,
   CircleDollarSign,
+  Database,
   ExternalLink,
   Info,
-  Package,
-  Pencil,
+  LayoutDashboard,
   Search,
   ShieldAlert,
   ShoppingBag,
   Trash2,
+  TrendingUp,
   Users,
-  WifiOff,
   XCircle
 } from "lucide-react";
 import { AdminClientPlan, AdminClientStatus } from "@prisma/client";
 import { fetchAllClients, ClientSnapshot, Alert } from "@/lib/admin-clients";
 import { prisma } from "@/lib/prisma";
+import { AdminFormDialog } from "@/components/admin-form-dialog";
 import {
   createAdminClientAction,
   deleteAdminClientAction,
@@ -67,7 +69,7 @@ function AlertRow({ alert }: { alert: Alert }) {
   }[alert.level];
 
   return (
-    <li className={`flex items-start gap-2 text-[0.78rem] font-medium ${cfg.cls}`}>
+    <li className={`flex items-start gap-2 text-[0.76rem] font-medium leading-snug ${cfg.cls}`}>
       {cfg.icon}
       <span>{alert.message}</span>
     </li>
@@ -76,10 +78,10 @@ function AlertRow({ alert }: { alert: Alert }) {
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="min-w-[7rem] flex-1 rounded-xl border border-border bg-surface px-3 py-2">
-      <span className="text-[0.64rem] font-semibold uppercase tracking-widest text-subtle">{label}</span>
-      <strong className="mt-1 block font-display text-[1.05rem] font-semibold leading-none tracking-tight text-fg">{value}</strong>
-      {sub && <span className="mt-1 block text-[0.68rem] text-muted">{sub}</span>}
+    <div className="min-w-0 rounded-xl border border-border bg-surface-2/45 px-3 py-2">
+      <span className="text-[0.62rem] font-semibold uppercase tracking-widest text-subtle">{label}</span>
+      <strong className="mt-1 block truncate font-display text-base font-semibold leading-none tracking-tight text-fg">{value}</strong>
+      {sub && <span className="mt-1 block truncate text-[0.67rem] text-muted">{sub}</span>}
     </div>
   );
 }
@@ -98,7 +100,7 @@ function Kpi({
   sub?: string;
 }) {
   const toneClass = {
-    neutral: "border-border bg-surface-2/60 text-muted",
+    neutral: "border-border bg-surface text-muted",
     success: "border-success/20 bg-success-soft text-success",
     warning: "border-warning/20 bg-warning-soft text-warning",
     danger: "border-danger/20 bg-danger-soft text-danger",
@@ -106,13 +108,45 @@ function Kpi({
   }[tone];
 
   return (
-    <div className={`rounded-2xl border p-4 ${toneClass}`}>
+    <div className={`rounded-2xl border p-3 shadow-soft ${toneClass}`}>
       <div className="flex items-center justify-between gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-surface/70 text-current">{icon}</span>
-        <strong className="font-display text-2xl font-semibold tracking-tight text-fg">{value}</strong>
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-surface/70 text-current">{icon}</span>
+        <strong className="truncate font-display text-xl font-semibold tracking-tight text-fg">{value}</strong>
       </div>
-      <p className="mt-3 text-[0.72rem] font-semibold uppercase tracking-widest">{label}</p>
-      {sub && <p className="mt-1 text-[0.74rem] font-medium opacity-80">{sub}</p>}
+      <p className="mt-2 truncate text-[0.68rem] font-semibold uppercase tracking-widest">{label}</p>
+      {sub && <p className="mt-1 truncate text-[0.72rem] font-medium opacity-80">{sub}</p>}
+    </div>
+  );
+}
+
+function InsightCard({
+  title,
+  value,
+  sub,
+  icon,
+  tone = "primary"
+}: {
+  title: string;
+  value: string | number;
+  sub: string;
+  icon: React.ReactNode;
+  tone?: "primary" | "success" | "warning" | "danger";
+}) {
+  const toneClass = {
+    primary: "border-primary/20 bg-primary-soft text-primary",
+    success: "border-success/20 bg-success-soft text-success",
+    warning: "border-warning/20 bg-warning-soft text-warning",
+    danger: "border-danger/20 bg-danger-soft text-danger"
+  }[tone];
+
+  return (
+    <div className={`rounded-2xl border p-3 ${toneClass}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-surface/70">{icon}</span>
+        <strong className="truncate font-display text-lg font-semibold text-fg">{value}</strong>
+      </div>
+      <p className="mt-2 truncate text-[0.66rem] font-semibold uppercase tracking-widest">{title}</p>
+      <p className="mt-1 text-[0.72rem] font-medium leading-snug opacity-85">{sub}</p>
     </div>
   );
 }
@@ -149,14 +183,16 @@ function ClientForm({
           <input className="field" name="name" defaultValue={client?.name ?? ""} placeholder="Sonho de Algodao" required />
         </label>
       </div>
-      <label className="label">
-        Nome da loja
-        <input className="field" name="storeName" defaultValue={client?.storeName ?? ""} placeholder="Nome exibido no card" />
-      </label>
-      <label className="label">
-        URL do sistema
-        <input className="field" name="appUrl" defaultValue={client?.appUrl ?? ""} placeholder="https://cliente.up.railway.app" />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="label">
+          Nome da loja
+          <input className="field" name="storeName" defaultValue={client?.storeName ?? ""} placeholder="Nome exibido" />
+        </label>
+        <label className="label">
+          URL do sistema
+          <input className="field" name="appUrl" defaultValue={client?.appUrl ?? ""} placeholder="https://cliente.up.railway.app" />
+        </label>
+      </div>
       <label className="label">
         DATABASE_URL do cliente
         <textarea className="field min-h-20 font-mono text-xs" name="databaseUrl" defaultValue={client?.databaseUrl ?? ""} required />
@@ -207,17 +243,16 @@ function ClientCard({
 }) {
   const criticalAlerts = client.alerts.filter((a) => a.level === "critical");
   const hasCritical = criticalAlerts.length > 0 || !client.online || client.status === "SUSPENDED";
-  const allClear = client.online && client.alerts.length === 0 && client.status === "ACTIVE";
 
   return (
-    <article className={`rounded-2xl border bg-surface-2/40 p-4 transition ${hasCritical ? "border-danger/35 bg-danger-soft/5" : "border-border"}`}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <article className={`rounded-2xl border bg-surface p-4 shadow-soft transition ${hasCritical ? "border-danger/35 bg-danger-soft/10" : "border-border"}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <StatusDot online={client.online} />
             <div className="min-w-0">
               <p className="truncate font-display text-lg font-semibold leading-tight text-fg">{client.storeName}</p>
-              <p className="truncate text-[0.76rem] text-muted">{client.name} · {client.key}</p>
+              <p className="truncate text-[0.76rem] text-muted">{client.name} - {client.key}</p>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -230,21 +265,22 @@ function ClientCard({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 md:justify-end">
+        <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
           {client.appUrl ? (
             <a href={client.appUrl} target="_blank" rel="noreferrer" className="button-secondary h-9 px-3 py-0 text-xs">
               <ExternalLink size={13} /> Abrir
             </a>
           ) : null}
           {dbClient ? (
-            <details className="group relative">
-              <summary className="button-secondary h-9 cursor-pointer list-none px-3 py-0 text-xs">
-                <Pencil size={13} /> Editar
-              </summary>
-              <div className="absolute right-0 z-20 mt-2 w-[min(92vw,34rem)] rounded-2xl border border-border bg-elevated p-4 shadow-elev">
-                <ClientForm action={updateAdminClientAction} client={dbClient} />
-              </div>
-            </details>
+            <AdminFormDialog
+              label="Editar"
+              title={`Editar ${client.storeName}`}
+              description="Atualize plano, status, mensalidade e conexao."
+              icon="pencil"
+              tone="secondary"
+            >
+              <ClientForm action={updateAdminClientAction} client={dbClient} />
+            </AdminFormDialog>
           ) : null}
         </div>
       </div>
@@ -255,22 +291,27 @@ function ClientCard({
         </div>
       )}
 
-      {client.alerts.length > 0 && (
+      {client.alerts.length > 0 ? (
         <ul className="mt-3 grid gap-1.5 border-t border-border/60 pt-3">
-          {client.alerts.map((a, i) => <AlertRow key={i} alert={a} />)}
+          {client.alerts.slice(0, 3).map((a, i) => <AlertRow key={i} alert={a} />)}
+          {client.alerts.length > 3 ? <li className="text-[0.74rem] font-semibold text-muted">+{client.alerts.length - 3} alerta(s)</li> : null}
         </ul>
+      ) : (
+        <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-3 text-[0.78rem] font-medium text-success">
+          <CheckCircle2 size={13} /> Operacao sem alertas.
+        </div>
       )}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Ultima venda" value={client.lastSaleAgo ?? "Nunca"} />
-        <Stat label="Vendas 7d" value={client.salesLast7} sub={`${client.salesLast30} em 30 dias`} />
-        <Stat label="Usuarios" value={`${client.activeUsers}/${client.totalUsers}`} sub="ativos / total" />
-        <Stat label="Catalogo" value={client.totalProducts} sub={client.productsWithoutVariants ? `${client.productsWithoutVariants} incompletos` : "produtos"} />
-        <Stat label="Clientes" value={client.totalCustomers} sub={`+${client.newCustomersLast30} em 30 dias`} />
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <Stat label="Ultima" value={client.lastSaleAgo ?? "Nunca"} />
+        <Stat label="Vendas 7d" value={client.salesLast7} sub={`${client.salesLast30} em 30d`} />
+        <Stat label="Usuarios" value={`${client.activeUsers}/${client.totalUsers}`} sub="ativos" />
+        <Stat label="Catalogo" value={client.totalProducts} sub={client.productsWithoutVariants ? `${client.productsWithoutVariants} incompletos` : "ok"} />
+        <Stat label="Clientes" value={client.totalCustomers} sub={`+${client.newCustomersLast30} em 30d`} />
       </div>
 
       {dbClient ? (
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-border/60 pt-3">
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-border/60 pt-3">
           {(["ACTIVE", "SUSPENDED", "CANCELED"] as AdminClientStatus[]).map((status) => (
             <form key={status} action={setAdminClientStatusAction}>
               <input type="hidden" name="id" value={dbClient.id} />
@@ -330,96 +371,78 @@ export default async function AdminDashboard({
   const totalAlerts = clients.reduce((sum, client) => sum + client.alertCount, 0);
   const criticalCount = clients.reduce((sum, client) => sum + client.alerts.filter((a) => a.level === "critical").length, 0);
   const totalSales7 = clients.reduce((sum, client) => sum + client.salesLast7, 0);
+  const totalSales30 = clients.reduce((sum, client) => sum + client.salesLast30, 0);
   const totalCustomers = clients.reduce((sum, client) => sum + client.totalCustomers, 0);
+  const newCustomers30 = clients.reduce((sum, client) => sum + client.newCustomersLast30, 0);
   const mrr = dbClients.reduce((sum, client) => sum + Number(client.monthlyFee ?? 0), 0);
   const activeClients = clients.filter((c) => c.status === "ACTIVE").length;
+  const payingClients = dbClients.filter((client) => Number(client.monthlyFee ?? 0) > 0).length;
+  const arpu = payingClients ? mrr / payingClients : 0;
+  const atRisk = clients.filter((client) => !client.online || client.alerts.some((a) => a.level === "critical") || client.status === "SUSPENDED" || client.salesLast30 === 0).length;
+  const healthScore = clients.length ? Math.max(0, Math.round(((onlineCount / clients.length) * 70) + (((clients.length - atRisk) / clients.length) * 30))) : 100;
+  const renewals = dbClients
+    .filter((client) => client.renewalDay)
+    .sort((a, b) => Number(a.renewalDay ?? 99) - Number(b.renewalDay ?? 99))
+    .slice(0, 4);
+  const topAlerts = clients.flatMap((client) => client.alerts.map((alert) => ({ client, alert }))).slice(0, 5);
 
   return (
     <div className="h-full overflow-hidden bg-surface p-3 md:p-5">
       <div className="mx-auto grid h-full max-w-7xl grid-rows-[auto_auto_minmax(0,1fr)] gap-3 overflow-hidden">
-        <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
+        <header className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/85 p-4 shadow-soft md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
             <p className="text-[0.68rem] font-semibold uppercase tracking-widest text-subtle">Painel Master</p>
             <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight text-fg md:text-3xl">
               Central de <span className="text-gradient">operacao</span>
             </h1>
             <p className="mt-1 max-w-2xl text-[0.82rem] text-muted">
-              Controle clientes, planos, saude operacional, alertas e crescimento em uma tela unica.
+              Visao executiva para acompanhar clientes, receita, saude operacional e riscos da base.
             </p>
           </div>
-          <form action="/api/admin/logout" method="POST">
-            <button type="submit" className="rounded-xl border border-border bg-surface-2 px-4 py-2 text-[0.82rem] text-muted transition hover:text-danger">
-              Sair
-            </button>
-          </form>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <AdminFormDialog
+              label="Novo cliente"
+              title="Novo cliente"
+              description="Cadastre app, banco, plano, mensalidade e renovacao."
+              icon="building"
+            >
+              <ClientForm action={createAdminClientAction} />
+              <div className="mt-4 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2 text-[0.75rem] text-warning">
+                <div className="flex gap-2">
+                  <ShieldAlert size={14} className="mt-0.5 shrink-0" />
+                  <span>Guarde DATABASE_URL apenas de clientes que voce administra. O proximo passo recomendado e criptografar esse campo.</span>
+                </div>
+              </div>
+            </AdminFormDialog>
+            <form action="/api/admin/logout" method="POST">
+              <button type="submit" className="rounded-xl border border-border bg-surface-2 px-4 py-2 text-[0.82rem] text-muted transition hover:text-danger">
+                Sair
+              </button>
+            </form>
+          </div>
         </header>
 
         <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-          <Kpi label="Clientes ativos" value={`${activeClients}/${clients.length}`} icon={<Users size={18} />} tone={activeClients === clients.length ? "success" : "warning"} />
-          <Kpi label="Online agora" value={`${onlineCount}/${clients.length}`} icon={<Activity size={18} />} tone={onlineCount === clients.length ? "success" : "danger"} />
-          <Kpi label="Alertas" value={totalAlerts} icon={criticalCount ? <XCircle size={18} /> : <CheckCircle2 size={18} />} tone={criticalCount ? "danger" : totalAlerts ? "warning" : "success"} sub={criticalCount ? `${criticalCount} criticos` : undefined} />
-          <Kpi label="MRR cadastrado" value={money(mrr)} icon={<CircleDollarSign size={18} />} tone="primary" />
-          <Kpi label="Uso agregado" value={totalSales7} icon={<ShoppingBag size={18} />} tone="neutral" sub={`${totalCustomers} clientes finais`} />
+          <Kpi label="Clientes ativos" value={`${activeClients}/${clients.length}`} icon={<Users size={17} />} tone={activeClients === clients.length ? "success" : "warning"} />
+          <Kpi label="Online agora" value={`${onlineCount}/${clients.length}`} icon={<Activity size={17} />} tone={onlineCount === clients.length ? "success" : "danger"} />
+          <Kpi label="Saude da base" value={`${healthScore}%`} icon={<LayoutDashboard size={17} />} tone={healthScore >= 85 ? "success" : healthScore >= 60 ? "warning" : "danger"} />
+          <Kpi label="MRR cadastrado" value={money(mrr)} icon={<CircleDollarSign size={17} />} tone="primary" sub={`${money(arpu)} ARPU`} />
+          <Kpi label="Uso agregado" value={totalSales7} icon={<ShoppingBag size={17} />} tone="neutral" sub={`${totalSales30} vendas em 30d`} />
         </section>
 
-        <section className="grid min-h-0 gap-3 overflow-hidden xl:grid-cols-[320px_1fr]">
-          <aside className="grid min-h-0 content-start gap-3 overflow-hidden">
-            <div className="surface-card grid gap-3 p-4">
-              <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
-                  <Building2 size={18} />
-                </span>
-                <div>
-                  <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Novo cliente</h2>
-                  <p className="text-[0.76rem] text-muted">Cadastre conexao, plano e status.</p>
-                </div>
-              </div>
-
-              <details className="group relative">
-                <summary className="button-primary h-10 cursor-pointer list-none px-4 py-0 text-sm">
-                  Abrir cadastro
-                </summary>
-                <div className="absolute left-0 top-full z-30 mt-2 max-h-[calc(100dvh-12rem)] w-[min(92vw,34rem)] overflow-y-auto rounded-2xl border border-border bg-elevated p-4 shadow-elev">
-                  <ClientForm action={createAdminClientAction} />
-                </div>
-              </details>
-
-              <div className="rounded-xl border border-warning/25 bg-warning-soft px-3 py-2 text-[0.72rem] text-warning">
-                <div className="flex gap-2">
-                  <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                  <span>DATABASE_URL fica restrita ao master. Proximo passo: criptografar esse campo.</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="surface-card grid gap-2 p-4 text-[0.78rem]">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted">Clientes monitorados</span>
-                <strong className="text-fg">{clients.length}</strong>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted">Receita mensal</span>
-                <strong className="text-fg">{money(mrr)}</strong>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted">Criticos</span>
-                <strong className={criticalCount ? "text-danger" : "text-success"}>{criticalCount}</strong>
-              </div>
-            </div>
-          </aside>
-
+        <section className="grid min-h-0 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1fr)_330px]">
           <main className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden">
-            <form className="surface-card grid gap-3 p-3 md:grid-cols-[1fr_170px_170px_auto] md:items-end">
+            <form className="surface-card grid gap-3 p-3 md:grid-cols-[1fr_160px_160px_auto] md:items-end">
               <label className="label">
                 Buscar
                 <span className="relative">
                   <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
-                  <input className="field pl-9" name="q" defaultValue={q ?? ""} placeholder="Nome, loja ou chave" />
+                  <input className="field h-10 pl-9" name="q" defaultValue={q ?? ""} placeholder="Nome, loja ou chave" />
                 </span>
               </label>
               <label className="label">
                 Status
-                <select className="field" name="status" defaultValue={status ?? "ALL"}>
+                <select className="field h-10" name="status" defaultValue={status ?? "ALL"}>
                   <option value="ALL">Todos</option>
                   {Object.entries(STATUS_LABEL).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
@@ -428,7 +451,7 @@ export default async function AdminDashboard({
               </label>
               <label className="label">
                 Plano
-                <select className="field" name="plan" defaultValue={plan ?? "ALL"}>
+                <select className="field h-10" name="plan" defaultValue={plan ?? "ALL"}>
                   <option value="ALL">Todos</option>
                   {Object.entries(PLAN_LABEL).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
@@ -439,15 +462,13 @@ export default async function AdminDashboard({
             </form>
 
             {clients.length === 0 ? (
-              <div className="grid min-h-0 place-items-center gap-4 rounded-2xl border border-dashed border-border bg-surface-2/30 p-8 text-center">
-                <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
-                  <Building2 size={24} strokeWidth={2.1} />
-                </span>
+              <div className="grid min-h-0 place-items-center rounded-2xl border border-dashed border-border bg-surface-2/30 p-8 text-center">
                 <div>
-                  <p className="font-display text-lg font-semibold tracking-tight text-fg">Nenhum cliente cadastrado</p>
-                  <p className="mt-2 max-w-sm text-[0.86rem] text-muted">
-                    Use o formulario ao lado para criar sua grade master.
-                  </p>
+                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
+                    <Building2 size={24} strokeWidth={2.1} />
+                  </span>
+                  <p className="mt-4 font-display text-lg font-semibold tracking-tight text-fg">Nenhum cliente cadastrado</p>
+                  <p className="mt-2 max-w-sm text-[0.86rem] text-muted">Use o botao Novo cliente para montar sua grade master.</p>
                 </div>
               </div>
             ) : sorted.length === 0 ? (
@@ -455,13 +476,81 @@ export default async function AdminDashboard({
                 Nenhum cliente encontrado com os filtros atuais.
               </div>
             ) : (
-              <div className="grid min-h-0 content-start gap-3 overflow-y-auto pr-1 xl:grid-cols-2">
+              <div className="grid min-h-0 content-start gap-3 overflow-y-auto pr-1">
                 {sorted.map((client) => (
                   <ClientCard key={client.key} client={client} dbClient={dbByKey.get(client.key)} />
                 ))}
               </div>
             )}
           </main>
+
+          <aside className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3 overflow-hidden">
+            <div className="grid grid-cols-2 gap-2">
+              <InsightCard title="Clientes em risco" value={atRisk} sub="offline, critico ou sem venda" icon={<AlertTriangle size={16} />} tone={atRisk ? "warning" : "success"} />
+              <InsightCard title="Novos finais" value={newCustomers30} sub="clientes dos seus clientes em 30d" icon={<TrendingUp size={16} />} tone="primary" />
+              <InsightCard title="Bancos conectados" value={clients.length} sub={`${onlineCount} respondendo agora`} icon={<Database size={16} />} tone={onlineCount === clients.length ? "success" : "danger"} />
+              <InsightCard title="Alertas" value={totalAlerts} sub={`${criticalCount} criticos`} icon={<ShieldAlert size={16} />} tone={criticalCount ? "danger" : totalAlerts ? "warning" : "success"} />
+            </div>
+
+            <section className="surface-card min-h-0 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-base font-semibold tracking-tight text-fg">Alertas prioritarios</h2>
+                  <p className="text-[0.74rem] text-muted">O que precisa de acao primeiro.</p>
+                </div>
+                <AlertTriangle size={17} className={criticalCount ? "text-danger" : "text-muted"} />
+              </div>
+              {topAlerts.length ? (
+                <ul className="grid gap-2">
+                  {topAlerts.map(({ client, alert }, index) => (
+                    <li key={`${client.key}-${index}`} className="rounded-xl border border-border bg-surface-2/45 p-3">
+                      <p className="truncate text-[0.76rem] font-semibold text-fg">{client.storeName}</p>
+                      <AlertRow alert={alert} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="rounded-xl border border-success/20 bg-success-soft p-3 text-[0.78rem] font-medium text-success">
+                  Tudo limpo nos clientes monitorados.
+                </div>
+              )}
+            </section>
+
+            <section className="surface-card min-h-0 overflow-hidden p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-base font-semibold tracking-tight text-fg">Agenda CEO</h2>
+                  <p className="text-[0.74rem] text-muted">Renovacoes e receita recorrente.</p>
+                </div>
+                <CalendarClock size={17} className="text-primary" />
+              </div>
+              <div className="grid gap-2 overflow-y-auto pr-1">
+                <div className="rounded-xl border border-border bg-surface-2/45 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[0.76rem] font-semibold text-muted">MRR atual</span>
+                    <strong className="text-fg">{money(mrr)}</strong>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <span className="text-[0.76rem] font-semibold text-muted">Ticket medio</span>
+                    <strong className="text-fg">{money(arpu)}</strong>
+                  </div>
+                </div>
+                {renewals.length ? renewals.map((client) => (
+                  <div key={client.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2/45 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[0.78rem] font-semibold text-fg">{client.storeName ?? client.name}</p>
+                      <p className="text-[0.72rem] text-muted">Renova dia {client.renewalDay}</p>
+                    </div>
+                    <strong className="shrink-0 text-[0.78rem] text-fg">{money(Number(client.monthlyFee ?? 0))}</strong>
+                  </div>
+                )) : (
+                  <div className="rounded-xl border border-border bg-surface-2/45 p-3 text-[0.78rem] text-muted">
+                    Cadastre o dia de renovacao para montar a agenda financeira.
+                  </div>
+                )}
+              </div>
+            </section>
+          </aside>
         </section>
       </div>
     </div>
