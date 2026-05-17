@@ -335,15 +335,15 @@ export default async function AdminDashboard({
   const activeClients = clients.filter((c) => c.status === "ACTIVE").length;
 
   return (
-    <div className="min-h-dvh bg-surface p-4 md:p-8">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-7 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="h-full overflow-hidden bg-surface p-3 md:p-5">
+      <div className="mx-auto grid h-full max-w-7xl grid-rows-[auto_auto_minmax(0,1fr)] gap-3 overflow-hidden">
+        <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-[0.68rem] font-semibold uppercase tracking-widest text-subtle">Painel Master</p>
-            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-fg md:text-4xl">
+            <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight text-fg md:text-3xl">
               Central de <span className="text-gradient">operacao</span>
             </h1>
-            <p className="mt-2 max-w-2xl text-[0.9rem] text-muted">
+            <p className="mt-1 max-w-2xl text-[0.82rem] text-muted">
               Controle clientes, planos, saude operacional, alertas e crescimento em uma tela unica.
             </p>
           </div>
@@ -354,7 +354,7 @@ export default async function AdminDashboard({
           </form>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
           <Kpi label="Clientes ativos" value={`${activeClients}/${clients.length}`} icon={<Users size={18} />} tone={activeClients === clients.length ? "success" : "warning"} />
           <Kpi label="Online agora" value={`${onlineCount}/${clients.length}`} icon={<Activity size={18} />} tone={onlineCount === clients.length ? "success" : "danger"} />
           <Kpi label="Alertas" value={totalAlerts} icon={criticalCount ? <XCircle size={18} /> : <CheckCircle2 size={18} />} tone={criticalCount ? "danger" : totalAlerts ? "warning" : "success"} sub={criticalCount ? `${criticalCount} criticos` : undefined} />
@@ -362,9 +362,9 @@ export default async function AdminDashboard({
           <Kpi label="Uso agregado" value={totalSales7} icon={<ShoppingBag size={18} />} tone="neutral" sub={`${totalCustomers} clientes finais`} />
         </section>
 
-        <section className="mt-5 grid gap-5 xl:grid-cols-[360px_1fr]">
-          <aside className="grid content-start gap-4">
-            <div className="surface-card grid gap-4 p-5">
+        <section className="grid min-h-0 gap-3 overflow-hidden xl:grid-cols-[320px_1fr]">
+          <aside className="grid min-h-0 content-start gap-3 overflow-hidden">
+            <div className="surface-card grid gap-3 p-4">
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
                   <Building2 size={18} />
@@ -374,18 +374,42 @@ export default async function AdminDashboard({
                   <p className="text-[0.76rem] text-muted">Cadastre conexao, plano e status.</p>
                 </div>
               </div>
-              <ClientForm action={createAdminClientAction} />
-              <div className="rounded-xl border border-warning/25 bg-warning-soft px-3 py-2 text-[0.75rem] text-warning">
+
+              <details className="group relative">
+                <summary className="button-primary h-10 cursor-pointer list-none px-4 py-0 text-sm">
+                  Abrir cadastro
+                </summary>
+                <div className="absolute left-0 top-full z-30 mt-2 max-h-[calc(100dvh-12rem)] w-[min(92vw,34rem)] overflow-y-auto rounded-2xl border border-border bg-elevated p-4 shadow-elev">
+                  <ClientForm action={createAdminClientAction} />
+                </div>
+              </details>
+
+              <div className="rounded-xl border border-warning/25 bg-warning-soft px-3 py-2 text-[0.72rem] text-warning">
                 <div className="flex gap-2">
                   <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                  <span>Guarde DATABASE_URL apenas de clientes que voce administra. O proximo passo recomendado e criptografar esse campo.</span>
+                  <span>DATABASE_URL fica restrita ao master. Proximo passo: criptografar esse campo.</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="surface-card grid gap-2 p-4 text-[0.78rem]">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted">Clientes monitorados</span>
+                <strong className="text-fg">{clients.length}</strong>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted">Receita mensal</span>
+                <strong className="text-fg">{money(mrr)}</strong>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted">Criticos</span>
+                <strong className={criticalCount ? "text-danger" : "text-success"}>{criticalCount}</strong>
               </div>
             </div>
           </aside>
 
-          <main className="grid content-start gap-4">
-            <form className="surface-card grid gap-3 p-4 md:grid-cols-[1fr_180px_180px_auto] md:items-end">
+          <main className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden">
+            <form className="surface-card grid gap-3 p-3 md:grid-cols-[1fr_170px_170px_auto] md:items-end">
               <label className="label">
                 Buscar
                 <span className="relative">
@@ -411,11 +435,11 @@ export default async function AdminDashboard({
                   ))}
                 </select>
               </label>
-              <button className="button-primary h-11 px-4 py-0">Filtrar</button>
+              <button className="button-primary h-10 px-4 py-0">Filtrar</button>
             </form>
 
             {clients.length === 0 ? (
-              <div className="grid place-items-center gap-4 rounded-2xl border border-dashed border-border bg-surface-2/30 p-12 text-center">
+              <div className="grid min-h-0 place-items-center gap-4 rounded-2xl border border-dashed border-border bg-surface-2/30 p-8 text-center">
                 <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
                   <Building2 size={24} strokeWidth={2.1} />
                 </span>
@@ -431,7 +455,7 @@ export default async function AdminDashboard({
                 Nenhum cliente encontrado com os filtros atuais.
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid min-h-0 content-start gap-3 overflow-y-auto pr-1 xl:grid-cols-2">
                 {sorted.map((client) => (
                   <ClientCard key={client.key} client={client} dbClient={dbByKey.get(client.key)} />
                 ))}
