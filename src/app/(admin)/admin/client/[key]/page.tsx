@@ -22,7 +22,7 @@ import {
 import type { AdminClientPlan, AdminClientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/admin-crypto";
-import { ADMIN_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
+import { ADMIN_COOKIE, getAdminSessionFromToken } from "@/lib/admin-auth";
 import { fetchClientSnapshot, findAdminClientConfig } from "@/lib/admin-clients";
 import { fetchClientDetail } from "@/lib/admin-client-detail";
 import { getClientSnapshotHistory } from "@/lib/admin-snapshots";
@@ -96,7 +96,7 @@ export default async function ClientDetailPage({
 
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_COOKIE)?.value;
-  if (!verifyAdminSessionToken(token)) {
+  if (!getAdminSessionFromToken(token)) {
     redirect("/admin/login");
   }
 

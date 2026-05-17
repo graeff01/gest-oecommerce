@@ -1,10 +1,12 @@
 "use server";
 
 import { AdminClientPlan, AdminClientStatus, Prisma } from "@prisma/client";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/admin-crypto";
+import { ADMIN_COOKIE, getAdminSessionFromToken } from "@/lib/admin-auth";
 import { captureAllSnapshots, captureSnapshotForClient } from "@/lib/admin-snapshots";
 
 const clientSchema = z.object({
@@ -33,8 +35,11 @@ function digitsOnly(value?: string) {
 }
 
 async function auditAdminAction(action: string, entity: string, entityId?: string | null, metadata?: Prisma.InputJsonValue) {
+  const cookieStore = await cookies();
+  const session = getAdminSessionFromToken(cookieStore.get(ADMIN_COOKIE)?.value);
   await prisma.auditLog.create({
     data: {
+      userId: session?.legacy ? null : session?.id ?? null,
       action,
       entity,
       entityId: entityId ?? null,
@@ -187,7 +192,16 @@ export async function setAdminClientStatusAction(formData: FormData) {
 
 export async function deleteAdminClientAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
+  const confirmation = String(formData.get("confirmKey") ?? "");
   if (!id) throw new Error("Cliente invalido.");
+  const target = await prisma.adminClient.findUnique({
+    where: { id },
+    select: { key: true }
+  });
+  if (!target) throw new Error("Cliente nao encontrado.");
+  if (confirmation !== target.key) {
+    throw new Error(`Digite ${target.key} para confirmar a remocao.`);
+  }
 
   const client = await prisma.adminClient.delete({ where: { id } });
   await auditAdminAction("ADMIN_CLIENT_DELETED", "AdminClient", client.id, {

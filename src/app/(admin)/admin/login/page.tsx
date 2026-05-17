@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 
 export default function AdminLoginPage() {
+  const [email, setEmail] = useState("");
   const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -17,13 +18,13 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/admin/auth", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ secret })
+        body: JSON.stringify({ email, password: secret, secret })
       });
 
       if (res.ok) {
         router.push("/admin");
       } else {
-        setError("Senha incorreta.");
+        setError(res.status === 429 ? "Muitas tentativas. Aguarde alguns minutos." : "Acesso incorreto.");
       }
     });
   }
@@ -42,14 +43,26 @@ export default function AdminLoginPage() {
         </div>
 
         <label className="label">
-          Senha de acesso
+          E-mail master
+          <input
+            className="field"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@suaempresa.com"
+            autoFocus
+          />
+        </label>
+
+        <label className="label">
+          Senha
           <input
             className="field"
             type="password"
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
             required
-            autoFocus
+            placeholder="Use a senha master"
           />
         </label>
 

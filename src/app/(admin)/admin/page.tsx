@@ -24,6 +24,7 @@ import {
   LogOut,
   Receipt,
   Search,
+  ScrollText,
   ShieldAlert,
   ShoppingBag,
   Sparkles,
@@ -39,7 +40,7 @@ import { AdminClientPlan, AdminClientStatus } from "@prisma/client";
 import { fetchAllClients, ClientSnapshot, Alert } from "@/lib/admin-clients";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/admin-crypto";
-import { ADMIN_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
+import { ADMIN_COOKIE, getAdminSessionFromToken } from "@/lib/admin-auth";
 import { getTaskCountsByClient } from "@/lib/admin-tasks";
 import { AdminFormDialog } from "@/components/admin-form-dialog";
 import { AutoRefresh } from "@/components/admin/AutoRefresh";
@@ -451,6 +452,12 @@ function ClientCard({
           ))}
           <form action={deleteAdminClientAction}>
             <input type="hidden" name="id" value={dbClient.id} />
+            <input
+              className="h-7 w-28 rounded-xl border border-danger/25 bg-surface px-2 text-[0.7rem] font-semibold text-danger outline-none"
+              name="confirmKey"
+              placeholder={client.key}
+              aria-label={`Digite ${client.key} para remover`}
+            />
             <button className="inline-flex h-7 items-center gap-1 rounded-xl border border-danger/25 bg-danger-soft/60 px-2.5 text-[0.7rem] font-semibold text-danger">
               <Trash2 size={11} /> Remover
             </button>
@@ -470,8 +477,9 @@ export default async function AdminDashboard({
 
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_COOKIE)?.value;
+  const adminSession = getAdminSessionFromToken(token);
 
-  if (!verifyAdminSessionToken(token)) {
+  if (!adminSession) {
     redirect("/admin/login");
   }
 
@@ -755,6 +763,12 @@ export default async function AdminDashboard({
                 <TvMode />
                 <AutoRefresh intervalMs={60000} />
                 <PrintButton />
+                <Link
+                  href="/admin/auditoria"
+                  className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-[0.82rem] font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
+                >
+                  <ScrollText size={13} /> Auditoria
+                </Link>
                 <form action="/api/admin/logout" method="POST">
                   <button
                     type="submit"

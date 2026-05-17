@@ -67,6 +67,13 @@ enum AdminClientPlan {
   ENTERPRISE
 }
 
+enum MasterAdminRole {
+  OWNER
+  ADMIN
+  SUPPORT
+  FINANCE
+}
+
 model User {
   id              String      @id @default(cuid())
   name            String
@@ -343,4 +350,19 @@ model AdminClientSnapshot {
 
   @@index([clientId, capturedAt])
   @@index([capturedAt])
+}
+
+model MasterAdminUser {
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  role         MasterAdminRole @default(OWNER)
+  active       Boolean         @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([active])
+  @@index([createdAt])
 }
