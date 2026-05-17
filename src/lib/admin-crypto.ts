@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 const PREFIX = "enc:v1:";
 
 function getKey() {
-  const secret = process.env.ADMIN_DATA_KEY || process.env.AUTH_SECRET;
+  const secret = process.env.ADMIN_DATA_KEY;
   if (!secret || secret.length < 32) {
     return null;
   }
