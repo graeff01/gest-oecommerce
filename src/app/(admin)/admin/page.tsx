@@ -38,6 +38,8 @@ import {
 import { AdminClientPlan, AdminClientStatus } from "@prisma/client";
 import { fetchAllClients, ClientSnapshot, Alert } from "@/lib/admin-clients";
 import { prisma } from "@/lib/prisma";
+import { decryptSecret } from "@/lib/admin-crypto";
+import { ADMIN_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { getTaskCountsByClient } from "@/lib/admin-tasks";
 import { AdminFormDialog } from "@/components/admin-form-dialog";
 import { AutoRefresh } from "@/components/admin/AutoRefresh";
@@ -52,8 +54,6 @@ import {
   setAdminClientStatusAction,
   updateAdminClientAction
 } from "./actions";
-
-const ADMIN_COOKIE = "gestao_admin_session";
 
 const STATUS_LABEL: Record<AdminClientStatus, string> = {
   SETUP: "Implantacao",
@@ -470,19 +470,22 @@ export default async function AdminDashboard({
 
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_COOKIE)?.value;
-  const adminSecret = process.env.ADMIN_SECRET;
 
-  if (!adminSecret || token !== adminSecret) {
+  if (!verifyAdminSessionToken(token)) {
     redirect("/admin/login");
   }
 
-  const [{ q, status, plan }, clients, dbClients, taskCounts] = await Promise.all([
+  const [{ q, status, plan }, clients, rawDbClients, taskCounts] = await Promise.all([
     searchParams,
     fetchAllClients(),
     prisma.adminClient.findMany({ orderBy: [{ status: "asc" }, { name: "asc" }] }).catch(() => []),
     getTaskCountsByClient().catch(() => new Map<string, { open: number; overdue: number }>())
   ]);
 
+  const dbClients = rawDbClients.map((client) => ({
+    ...client,
+    databaseUrl: decryptSecret(client.databaseUrl)
+  }));
   const dbByKey = new Map(dbClients.map((c) => [c.key, c]));
   const normalizedQuery = q?.trim().toLowerCase() ?? "";
   const filtered = clients.filter((c) => {

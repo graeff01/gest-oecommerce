@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import type { AdminClientPlan, AdminClientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { decryptSecret } from "@/lib/admin-crypto";
+import { ADMIN_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { fetchClientSnapshot, findAdminClientConfig } from "@/lib/admin-clients";
 import { fetchClientDetail } from "@/lib/admin-client-detail";
 import { getClientSnapshotHistory } from "@/lib/admin-snapshots";
@@ -33,8 +35,6 @@ import { CaptureClientSnapshotButton } from "@/components/admin/CaptureSnapshotB
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const ADMIN_COOKIE = "gestao_admin_session";
 
 const STATUS_LABEL: Record<AdminClientStatus, string> = {
   SETUP: "Implantacao",
@@ -96,8 +96,7 @@ export default async function ClientDetailPage({
 
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_COOKIE)?.value;
-  const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret || token !== adminSecret) {
+  if (!verifyAdminSessionToken(token)) {
     redirect("/admin/login");
   }
 
@@ -160,7 +159,7 @@ npx prisma migrate deploy`}
         name: dbClient.name,
         storeName: dbClient.storeName,
         appUrl: dbClient.appUrl,
-        url: dbClient.databaseUrl,
+        url: decryptSecret(dbClient.databaseUrl),
         status: dbClient.status,
         plan: dbClient.plan,
         monthlyFee: dbClient.monthlyFee === null ? null : Number(dbClient.monthlyFee),

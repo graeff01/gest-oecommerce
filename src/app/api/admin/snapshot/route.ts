@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { captureAllSnapshots } from "@/lib/admin-snapshots";
+import { verifyAdminCronSecret } from "@/lib/admin-auth";
 
 // Endpoint para cron externo capturar snapshots periodicamente.
 // Protegido por ADMIN_SECRET via header `x-admin-secret` ou query `?secret=...`.
@@ -13,12 +14,10 @@ import { captureAllSnapshots } from "@/lib/admin-snapshots";
 export const dynamic = "force-dynamic";
 
 async function authorize(req: Request): Promise<boolean> {
-  const expected = process.env.ADMIN_SECRET;
-  if (!expected) return false;
   const url = new URL(req.url);
   const fromHeader = req.headers.get("x-admin-secret");
   const fromQuery = url.searchParams.get("secret");
-  return fromHeader === expected || fromQuery === expected;
+  return verifyAdminCronSecret(fromHeader) || verifyAdminCronSecret(fromQuery);
 }
 
 export async function POST(req: Request) {

@@ -1,9 +1,10 @@
 "use server";
 
-import { AdminClientPlan, AdminClientStatus } from "@prisma/client";
+import { AdminClientPlan, AdminClientStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { encryptSecret } from "@/lib/admin-crypto";
 import { captureAllSnapshots, captureSnapshotForClient } from "@/lib/admin-snapshots";
 
 const clientSchema = z.object({
@@ -31,6 +32,17 @@ function digitsOnly(value?: string) {
   return value?.replace(/\D/g, "") || null;
 }
 
+async function auditAdminAction(action: string, entity: string, entityId?: string | null, metadata?: Prisma.InputJsonValue) {
+  await prisma.auditLog.create({
+    data: {
+      action,
+      entity,
+      entityId: entityId ?? null,
+      metadata: metadata ?? undefined
+    }
+  }).catch(() => null);
+}
+
 export async function createAdminClientAction(formData: FormData) {
   const parsed = clientSchema.safeParse({
     key: formData.get("key"),
@@ -53,13 +65,13 @@ export async function createAdminClientAction(formData: FormData) {
   }
 
   const data = parsed.data;
-  await prisma.adminClient.create({
+  const client = await prisma.adminClient.create({
     data: {
       key: data.key,
       name: data.name,
       storeName: nullableText(data.storeName),
       appUrl: nullableText(data.appUrl),
-      databaseUrl: data.databaseUrl,
+      databaseUrl: encryptSecret(data.databaseUrl),
       status: data.status,
       plan: data.plan,
       monthlyFee: data.monthlyFee ?? null,
@@ -69,6 +81,12 @@ export async function createAdminClientAction(formData: FormData) {
       contactPhone: digitsOnly(data.contactPhone),
       contactEmail: nullableText(data.contactEmail)
     }
+  });
+
+  await auditAdminAction("ADMIN_CLIENT_CREATED", "AdminClient", client.id, {
+    key: client.key,
+    status: client.status,
+    plan: client.plan
   });
 
   revalidatePath("/admin");
@@ -97,14 +115,19 @@ export async function updateAdminClientAction(formData: FormData) {
   }
 
   const data = parsed.data;
-  await prisma.adminClient.update({
+  const before = await prisma.adminClient.findUnique({
+    where: { id },
+    select: { key: true, status: true, plan: true, monthlyFee: true, renewalDay: true }
+  });
+
+  const client = await prisma.adminClient.update({
     where: { id },
     data: {
       key: data.key,
       name: data.name,
       storeName: nullableText(data.storeName),
       appUrl: nullableText(data.appUrl),
-      databaseUrl: data.databaseUrl,
+      databaseUrl: encryptSecret(data.databaseUrl),
       status: data.status,
       plan: data.plan,
       monthlyFee: data.monthlyFee ?? null,
@@ -114,6 +137,26 @@ export async function updateAdminClientAction(formData: FormData) {
       contactPhone: digitsOnly(data.contactPhone),
       contactEmail: nullableText(data.contactEmail)
     }
+  });
+
+  await auditAdminAction("ADMIN_CLIENT_UPDATED", "AdminClient", client.id, {
+    before: before
+      ? {
+          key: before.key,
+          status: before.status,
+          plan: before.plan,
+          monthlyFee: before.monthlyFee === null ? null : Number(before.monthlyFee),
+          renewalDay: before.renewalDay
+        }
+      : null,
+    after: {
+      key: client.key,
+      status: client.status,
+      plan: client.plan,
+      monthlyFee: client.monthlyFee === null ? null : Number(client.monthlyFee),
+      renewalDay: client.renewalDay
+    },
+    databaseUrlChanged: true
   });
 
   revalidatePath("/admin");
@@ -128,19 +171,29 @@ export async function setAdminClientStatusAction(formData: FormData) {
     throw new Error("Status invalido.");
   }
 
-  await prisma.adminClient.update({
+  const client = await prisma.adminClient.update({
     where: { id },
     data: { status: status as AdminClientStatus }
   });
 
+  await auditAdminAction("ADMIN_CLIENT_STATUS_CHANGED", "AdminClient", client.id, {
+    key: client.key,
+    status: client.status
+  });
+
   revalidatePath("/admin");
+  revalidatePath(`/admin/client/${client.key}`);
 }
 
 export async function deleteAdminClientAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Cliente invalido.");
 
-  await prisma.adminClient.delete({ where: { id } });
+  const client = await prisma.adminClient.delete({ where: { id } });
+  await auditAdminAction("ADMIN_CLIENT_DELETED", "AdminClient", client.id, {
+    key: client.key,
+    name: client.name
+  });
   revalidatePath("/admin");
 }
 
@@ -153,6 +206,7 @@ export async function updateClientNotesAction(formData: FormData) {
     where: { id },
     data: { notes: notes || null }
   });
+  await auditAdminAction("ADMIN_CLIENT_NOTES_UPDATED", "AdminClient", client.id, { key: client.key });
   revalidatePath("/admin");
   revalidatePath(`/admin/client/${client.key}`);
 }
@@ -186,6 +240,10 @@ export async function createTaskAction(formData: FormData) {
       priority: parsed.data.priority ?? 0
     }
   });
+  await auditAdminAction("ADMIN_TASK_CREATED", "AdminClient", parsed.data.clientId, {
+    key: client.key,
+    priority: parsed.data.priority ?? 0
+  });
   revalidatePath("/admin");
   revalidatePath(`/admin/client/${client.key}`);
 }
@@ -202,6 +260,10 @@ export async function toggleTaskAction(formData: FormData) {
     where: { id },
     data: { done: !existing.done }
   });
+  await auditAdminAction("ADMIN_TASK_TOGGLED", "AdminTask", existing.id, {
+    clientKey: existing.client.key,
+    done: !existing.done
+  });
   revalidatePath("/admin");
   revalidatePath(`/admin/client/${existing.client.key}`);
 }
@@ -215,6 +277,9 @@ export async function deleteTaskAction(formData: FormData) {
   });
   if (!existing) return;
   await prisma.adminTask.delete({ where: { id } });
+  await auditAdminAction("ADMIN_TASK_DELETED", "AdminTask", existing.id, {
+    clientKey: existing.client.key
+  });
   revalidatePath("/admin");
   revalidatePath(`/admin/client/${existing.client.key}`);
 }
@@ -222,6 +287,7 @@ export async function deleteTaskAction(formData: FormData) {
 // ── Snapshots ────────────────────────────────────────────────────────
 export async function captureAllSnapshotsAction() {
   await captureAllSnapshots();
+  await auditAdminAction("ADMIN_SNAPSHOTS_CAPTURED", "AdminClientSnapshot");
   revalidatePath("/admin");
 }
 
@@ -231,6 +297,7 @@ export async function captureClientSnapshotAction(formData: FormData) {
   const client = await prisma.adminClient.findUnique({ where: { id } });
   if (!client) throw new Error("Cliente nao encontrado.");
   await captureSnapshotForClient(client);
+  await auditAdminAction("ADMIN_CLIENT_SNAPSHOT_CAPTURED", "AdminClient", client.id, { key: client.key });
   revalidatePath("/admin");
   revalidatePath(`/admin/client/${client.key}`);
 }

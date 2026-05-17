@@ -2,6 +2,7 @@ import "server-only";
 
 import { AdminClientPlan, AdminClientStatus, PrismaClient } from "@prisma/client";
 import { prisma as masterPrisma } from "@/lib/prisma";
+import { decryptSecret, encryptSecret, isEncryptedSecret } from "@/lib/admin-crypto";
 
 export type ClientConfig = {
   id?: string;
@@ -36,6 +37,10 @@ function getClientPrisma(url: string): PrismaClient {
   const client = new PrismaClient({ datasources: { db: { url } } });
   clientInstances.set(url, client);
   return client;
+}
+
+function toPlainUrl(value: string) {
+  return decryptSecret(value);
 }
 
 export type Alert = {
@@ -265,13 +270,24 @@ async function fetchDatabaseClientConfigs(): Promise<ClientConfig[]> {
       orderBy: [{ status: "asc" }, { name: "asc" }]
     });
 
+    await Promise.all(
+      rows
+        .filter((row) => row.databaseUrl && !isEncryptedSecret(row.databaseUrl))
+        .map((row) =>
+          masterPrisma.adminClient.update({
+            where: { id: row.id },
+            data: { databaseUrl: encryptSecret(row.databaseUrl) }
+          }).catch(() => null)
+        )
+    );
+
     return rows.map((row) => ({
       id: row.id,
       key: row.key,
       name: row.name,
       storeName: row.storeName,
       appUrl: row.appUrl,
-      url: row.databaseUrl,
+      url: toPlainUrl(row.databaseUrl),
       status: row.status,
       plan: row.plan,
       monthlyFee: row.monthlyFee === null ? null : Number(row.monthlyFee),
@@ -284,7 +300,52 @@ async function fetchDatabaseClientConfigs(): Promise<ClientConfig[]> {
   }
 }
 
+async function syncEnvClientsToDatabase() {
+  if (envClientsConfig.length === 0) return;
+  try {
+    await Promise.all(
+      envClientsConfig.map(async (client) => {
+        const existing = await masterPrisma.adminClient.findUnique({
+          where: { key: client.key },
+          select: { id: true }
+        });
+        if (existing) return;
+
+        await masterPrisma.adminClient.create({
+          data: {
+            key: client.key,
+            name: client.name,
+            storeName: client.storeName ?? null,
+            appUrl: client.appUrl ?? null,
+            databaseUrl: encryptSecret(client.url),
+            status: client.status ?? "ACTIVE",
+            plan: client.plan ?? "STARTER",
+            monthlyFee: client.monthlyFee ?? null,
+            renewalDay: client.renewalDay ?? null,
+            notes: client.notes ?? "Importado automaticamente de ADMIN_CLIENTS."
+          }
+        });
+
+        await masterPrisma.auditLog.create({
+          data: {
+            action: "ADMIN_CLIENT_IMPORTED_FROM_ENV",
+            entity: "AdminClient",
+            entityId: client.key,
+            metadata: {
+              key: client.key,
+              source: "ADMIN_CLIENTS"
+            }
+          }
+        }).catch(() => null);
+      })
+    );
+  } catch {
+    // Keep the admin panel readable even if the master DB is temporarily unavailable.
+  }
+}
+
 export async function findAdminClientConfig(key: string): Promise<ClientConfig | null> {
+  await syncEnvClientsToDatabase();
   const databaseClients = await fetchDatabaseClientConfigs();
   const databaseClient = databaseClients.find((client) => client.key === key);
   if (databaseClient) return databaseClient;
@@ -294,6 +355,7 @@ export async function findAdminClientConfig(key: string): Promise<ClientConfig |
 }
 
 export async function fetchAllClients(): Promise<ClientSnapshot[]> {
+  await syncEnvClientsToDatabase();
   const databaseClients = await fetchDatabaseClientConfigs();
   const envClients = envClientsConfig.map((client) => ({ ...client, source: "env" as const }));
   const databaseKeys = new Set(databaseClients.map((client) => client.key));

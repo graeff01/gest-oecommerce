@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { fetchAllClients, fetchClientSnapshot, ClientSnapshot } from "@/lib/admin-clients";
 import type { AdminClient } from "@prisma/client";
+import { decryptSecret } from "@/lib/admin-crypto";
 
 function calcHealth(snap: ClientSnapshot): number {
   let score = 0;
@@ -27,7 +28,7 @@ export async function captureSnapshotForClient(client: AdminClient): Promise<voi
     name: client.name,
     storeName: client.storeName,
     appUrl: client.appUrl,
-    url: client.databaseUrl,
+    url: decryptSecret(client.databaseUrl),
     status: client.status,
     plan: client.plan,
     monthlyFee: client.monthlyFee === null ? null : Number(client.monthlyFee),
