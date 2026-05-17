@@ -574,7 +574,7 @@ export default async function AdminDashboard({
   // ── RENDER ──────────────────────────────────────────────────
   return (
     <div className="min-h-full">
-      <div className="mx-auto max-w-[1400px] space-y-4 p-3 md:p-5">
+      <div className="space-y-4 p-4 md:p-6 xl:p-8 2xl:p-10">
 
         {/* ╔══════════════════════════════════════════════════════════════╗
             HERO COMMAND CENTER
@@ -609,7 +609,7 @@ export default async function AdminDashboard({
             }}
           />
 
-          <div className="relative grid gap-6 p-6 lg:grid-cols-[1.4fr_1fr] lg:gap-8 lg:p-8">
+          <div className="relative grid gap-6 p-6 lg:grid-cols-[1.4fr_1fr] lg:gap-8 lg:p-8 2xl:grid-cols-[1.6fr_1fr] 2xl:p-10">
             {/* Left: title & status */}
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -680,7 +680,7 @@ export default async function AdminDashboard({
             </div>
 
             {/* Right: key metrics tiles */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-300">
@@ -767,7 +767,7 @@ export default async function AdminDashboard({
               {recommendations.length} acao{recommendations.length !== 1 ? "es" : ""}
             </span>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {recommendations.map((rec, idx) => {
               const toneMap = {
                 danger: { border: "border-danger/30", bg: "bg-danger-soft/30", icon: "bg-danger/15 text-danger", chip: "bg-danger text-white" },
@@ -903,7 +903,7 @@ export default async function AdminDashboard({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
               {withHealth.map(({ client, health }) => {
                 const bg =
                   health >= 80
@@ -1091,7 +1091,7 @@ export default async function AdminDashboard({
               Nenhum cliente encontrado com os filtros atuais.
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid gap-3 2xl:grid-cols-2">
               {sorted.map((c) => (
                 <ClientCard
                   key={c.key}
@@ -1125,7 +1125,7 @@ export default async function AdminDashboard({
                 <strong className="font-display text-sm font-bold text-fg">{money(mrr)}</strong>
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {allRenewals.map(({ client, daysUntil }) => {
                 const fee = Number(client.monthlyFee ?? 0);
                 const urgent = daysUntil <= 3;
