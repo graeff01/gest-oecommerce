@@ -20,6 +20,14 @@ function fmtDate(value: Date | string | null | undefined): string {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
 }
 
+function whatsappPhone(value?: string | null): string {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("55")) return digits;
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+  return digits;
+}
+
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   PIX: "Pix",
   CREDIT_CARD: "Cartao credito",
@@ -40,7 +48,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
@@ -65,12 +73,55 @@ export async function GET(
 
   if (!order) return NextResponse.json({ error: "Pedido nao encontrado." }, { status: 404 });
 
-  const storeName = escapeHtml(settings?.storeName ?? "Loja");
-  const storeTagline = escapeHtml(settings?.storeTagline ?? "");
+  const storeNameRaw = settings?.storeName ?? "Loja";
+  const storeTaglineRaw = settings?.storeTagline ?? "";
+  const storeName = escapeHtml(storeNameRaw);
+  const storeTagline = escapeHtml(storeTaglineRaw);
   const subtotal = Number(order.subtotal);
   const discount = Number(order.discount);
   const fee = Number(order.fee);
   const total = Number(order.total);
+
+  const itemMessageLines = order.items.map((item) => {
+    const name = item.variant
+      ? `${item.variant.product.name} - ${item.variant.color} / ${item.variant.size}`
+      : (item.label ?? "Item avulso");
+    const unitPrice = Number(item.unitPrice);
+    return `- ${item.quantity}x ${name}: ${fmt(unitPrice * item.quantity)}`;
+  });
+
+  const installmentsMessageLines = order.installments.length
+    ? [
+        "",
+        "Parcelas:",
+        ...order.installments.map((inst) => `${inst.sequence}/${inst.totalCount} - ${fmtDate(inst.dueDate)} - ${fmt(Number(inst.amount))} - ${inst.paidAt ? "Paga" : "Em aberto"}`)
+      ]
+    : [];
+
+  const receiptUrl = req.nextUrl.toString();
+  const whatsappMessage = [
+    `*${storeNameRaw}*`,
+    `Comprovante do pedido ${order.code}`,
+    "",
+    `Cliente: ${order.customer?.name ?? "Venda avulsa"}`,
+    `Data: ${fmtDate(order.createdAt)}`,
+    `Pagamento: ${PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod}`,
+    `Status: ${STATUS_LABELS[order.status] ?? order.status}`,
+    "",
+    "Itens:",
+    ...itemMessageLines,
+    "",
+    `Subtotal: ${fmt(subtotal)}`,
+    ...(discount > 0 ? [`Desconto: - ${fmt(discount)}`] : []),
+    ...(fee > 0 ? [`Taxa: + ${fmt(fee)}`] : []),
+    `Total: *${fmt(total)}*`,
+    ...installmentsMessageLines,
+    ...(order.notes ? ["", `Observacao: ${order.notes}`] : []),
+    "",
+    `Comprovante online: ${receiptUrl}`
+  ].join("\n");
+  const phone = whatsappPhone(order.customer?.phone);
+  const whatsappUrl = `https://wa.me/${phone ? phone : ""}?text=${encodeURIComponent(whatsappMessage)}`;
 
   const itemsHtml = order.items
     .map((item) => {
@@ -141,7 +192,32 @@ export async function GET(
       .no-print { display: none !important; }
       .receipt { box-shadow: none; border-radius: 0; }
     }
-    .print-btn {
+    .action-bar {
+      display: flex;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .whatsapp-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 11px 22px;
+      background: #12a150;
+      color: #fff;
+      text-decoration: none;
+      border: none;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: 0 10px 24px rgba(18, 161, 80, .22);
+    }
+    .whatsapp-btn:focus-visible {
+      outline: 3px solid rgba(18, 161, 80, .28);
+      outline-offset: 3px;
+    }
+    .legacy-print-btn {
       display: block;
       margin: 0 auto 24px;
       padding: 10px 28px;
@@ -234,7 +310,9 @@ export async function GET(
   </style>
 </head>
 <body>
-  <button class="print-btn no-print" onclick="window.print()">Imprimir / Salvar PDF</button>
+  <div class="action-bar no-print">
+    <a class="whatsapp-btn" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Enviar no WhatsApp</a>
+  </div>
 
   <main class="receipt">
     <header class="top">
@@ -311,7 +389,6 @@ export async function GET(
     </div>
   </main>
 
-  <script>window.onload = () => window.print();</script>
 </body>
 </html>`;
 
