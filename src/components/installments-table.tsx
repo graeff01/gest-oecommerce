@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckSquare2, MessageCircle, Square } from "lucide-react";
+import { CheckSquare2, ChevronDown, ChevronRight, MessageCircle, Square } from "lucide-react";
 import { payInstallmentAction, payManyInstallmentsAction } from "@/app/(app)/actions/orders";
 import { date, money } from "@/lib/format";
 
@@ -26,12 +26,49 @@ function buildWhatsAppUrl(phone: string | null | undefined, installment: Install
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
 
-export function InstallmentsTable({ installments }: { installments: Installment[]; }) {
+type CustomerGroup = {
+  customerName: string;
+  customerPhone: string | null | undefined;
+  totalOwed: number;
+  hasOverdue: boolean;
+  installments: Installment[];
+};
+
+function groupByCustomer(installments: Installment[], today: Date): CustomerGroup[] {
+  const map = new Map<string, CustomerGroup>();
+  for (const i of installments) {
+    const existing = map.get(i.customerName);
+    const due = new Date(i.dueDate); due.setHours(0, 0, 0, 0);
+    const overdue = due < today;
+    if (existing) {
+      existing.installments.push(i);
+      existing.totalOwed += i.amount;
+      if (overdue) existing.hasOverdue = true;
+    } else {
+      map.set(i.customerName, {
+        customerName: i.customerName,
+        customerPhone: i.customerPhone,
+        totalOwed: i.amount,
+        hasOverdue: overdue,
+        installments: [i]
+      });
+    }
+  }
+  // ordena: inadimplentes primeiro, depois alfabético
+  return [...map.values()].sort((a, b) => {
+    if (a.hasOverdue && !b.hasOverdue) return -1;
+    if (!a.hasOverdue && b.hasOverdue) return 1;
+    return a.customerName.localeCompare(b.customerName);
+  });
+}
+
+function CustomerCard({ group, today }: { group: CustomerGroup; today: Date }) {
+  const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkMethod, setBulkMethod] = useState("PIX");
+  const [payMethod, setPayMethod] = useState("PIX");
   const [isPending, startTransition] = useTransition();
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const allSelected = group.installments.length > 0 && selected.size === group.installments.length;
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -42,24 +79,147 @@ export function InstallmentsTable({ installments }: { installments: Installment[
   }
 
   function toggleAll() {
-    setSelected((prev) =>
-      prev.size === installments.length
-        ? new Set()
-        : new Set(installments.map((i) => i.id))
-    );
+    setSelected(allSelected ? new Set() : new Set(group.installments.map((i) => i.id)));
   }
 
   function handleBulkPay() {
     if (selected.size === 0) return;
     const fd = new FormData();
     fd.set("installmentIds", JSON.stringify(Array.from(selected)));
-    fd.set("paymentMethod", bulkMethod);
+    fd.set("paymentMethod", payMethod);
     startTransition(() => {
       payManyInstallmentsAction(fd).then(() => setSelected(new Set()));
     });
   }
 
-  const allSelected = installments.length > 0 && selected.size === installments.length;
+  const whatsappHref = buildWhatsAppUrl(group.customerPhone, group.installments[0]);
+
+  return (
+    <div className={`overflow-hidden rounded-2xl border transition ${group.hasOverdue ? "border-danger/30" : "border-border"}`}>
+      {/* header do cliente */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-surface-2/60 ${group.hasOverdue ? "bg-danger-soft/40" : "bg-surface-2/30"}`}
+      >
+        <span className="text-muted transition">{open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-display text-[0.95rem] font-semibold text-fg">{group.customerName}</span>
+          <span className="text-[0.74rem] text-muted">
+            {group.installments.length} {group.installments.length === 1 ? "parcela" : "parcelas"} em aberto
+            {group.hasOverdue && <span className="ml-2 font-semibold text-danger">· com atraso</span>}
+          </span>
+        </span>
+        <span className="shrink-0 font-display text-base font-semibold text-fg">{money(group.totalOwed)}</span>
+        {whatsappHref && (
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-success-soft hover:text-success"
+            title="Cobrar via WhatsApp"
+          >
+            <MessageCircle size={14} strokeWidth={2.1} />
+          </a>
+        )}
+      </button>
+
+      {/* parcelas */}
+      {open && (
+        <div className="divide-y divide-border/60">
+          {/* linha de seleção em lote */}
+          {group.installments.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2 bg-surface/40 px-4 py-2">
+              <button type="button" onClick={toggleAll} className="flex items-center gap-1.5 text-[0.76rem] text-muted transition hover:text-primary">
+                {allSelected
+                  ? <CheckSquare2 size={14} strokeWidth={2.1} className="text-primary" />
+                  : <Square size={14} strokeWidth={2.1} />}
+                {allSelected ? "Desmarcar todas" : "Selecionar todas"}
+              </button>
+              {selected.size > 0 && (
+                <>
+                  <span className="text-[0.74rem] text-muted">·</span>
+                  <span className="text-[0.76rem] font-semibold text-primary">
+                    {selected.size} selecionada{selected.size > 1 ? "s" : ""} · {money(group.installments.filter((i) => selected.has(i.id)).reduce((s, i) => s + i.amount, 0))}
+                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <select
+                      className="field h-7 py-0 text-xs"
+                      value={payMethod}
+                      onChange={(e) => setPayMethod(e.target.value)}
+                    >
+                      <option value="PIX">Pix</option>
+                      <option value="CASH">Dinheiro</option>
+                      <option value="DEBIT_CARD">Débito</option>
+                      <option value="CREDIT_CARD">Crédito</option>
+                      <option value="BANK_SLIP">Boleto</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleBulkPay}
+                      disabled={isPending}
+                      className="button-primary h-7 px-3 text-xs"
+                    >
+                      {isPending ? "Processando..." : "Marcar como pagas"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* cada parcela */}
+          {group.installments.map((i) => {
+            const due = new Date(i.dueDate); due.setHours(0, 0, 0, 0);
+            const overdue = due < today;
+            const checked = selected.has(i.id);
+            return (
+              <div
+                key={i.id}
+                className={`flex flex-wrap items-center gap-3 px-4 py-3 transition ${checked ? "bg-primary-soft/30" : "bg-surface/20 hover:bg-surface-2/30"}`}
+              >
+                {/* checkbox */}
+                <button type="button" onClick={() => toggle(i.id)} className="shrink-0 text-muted transition hover:text-primary">
+                  {checked
+                    ? <CheckSquare2 size={15} strokeWidth={2.1} className="text-primary" />
+                    : <Square size={15} strokeWidth={2.1} />}
+                </button>
+
+                {/* info */}
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
+                  <span className="chip text-xs">{i.sequence}/{i.totalCount}</span>
+                  <span className="text-[0.78rem] text-muted">{i.orderCode}</span>
+                  <span className={`text-[0.78rem] font-medium ${overdue ? "text-danger" : "text-muted"}`}>{date(i.dueDate)}{overdue && " · atrasada"}</span>
+                </div>
+
+                {/* valor */}
+                <span className="font-display text-[0.95rem] font-semibold text-fg">{money(i.amount)}</span>
+
+                {/* ação individual */}
+                <form action={payInstallmentAction} className="flex items-center gap-1.5">
+                  <input type="hidden" name="installmentId" value={i.id} />
+                  <select className="field h-7 py-0 text-xs" name="paymentMethod" defaultValue="PIX">
+                    <option value="PIX">Pix</option>
+                    <option value="CASH">Dinheiro</option>
+                    <option value="DEBIT_CARD">Débito</option>
+                    <option value="CREDIT_CARD">Crédito</option>
+                    <option value="BANK_SLIP">Boleto</option>
+                  </select>
+                  <button className="button-primary h-7 px-3 text-xs">Pagar</button>
+                </form>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function InstallmentsTable({ installments }: { installments: Installment[] }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const groups = groupByCustomer(installments, today);
 
   if (installments.length === 0) {
     return (
@@ -71,166 +231,9 @@ export function InstallmentsTable({ installments }: { installments: Installment[
 
   return (
     <div className="grid gap-3">
-      {/* barra de ações em lote */}
-      {selected.size > 0 && (
-        <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary-soft px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <span className="text-[0.84rem] font-semibold text-fg">
-            {selected.size} {selected.size === 1 ? "parcela selecionada" : "parcelas selecionadas"}
-            {" · "}
-            <span className="text-primary">
-              {money(installments.filter((i) => selected.has(i.id)).reduce((s, i) => s + i.amount, 0))}
-            </span>
-          </span>
-          <div className="grid w-full gap-2 sm:flex sm:flex-1 sm:items-center sm:justify-end">
-            <select
-              className="field h-8 py-1 text-xs"
-              value={bulkMethod}
-              onChange={(e) => setBulkMethod(e.target.value)}
-            >
-              <option value="PIX">Pix</option>
-              <option value="CASH">Dinheiro</option>
-              <option value="DEBIT_CARD">Débito</option>
-              <option value="CREDIT_CARD">Crédito</option>
-              <option value="BANK_SLIP">Boleto</option>
-            </select>
-            <button
-              type="button"
-              onClick={handleBulkPay}
-              disabled={isPending}
-              className="button-primary h-8 px-4 text-xs"
-            >
-              {isPending ? "Processando..." : `Marcar ${selected.size} como pagas`}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelected(new Set())}
-              className="h-8 rounded-xl border border-border px-3 text-xs text-muted transition hover:text-fg"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-3 md:hidden">
-        {installments.map((i) => {
-          const due = new Date(i.dueDate); due.setHours(0, 0, 0, 0);
-          const overdue = due < today;
-          const checked = selected.has(i.id);
-          const href = buildWhatsAppUrl(i.customerPhone, i);
-          return (
-            <article key={i.id} className={`surface-card p-4 ${checked ? "ring-1 ring-primary/25" : ""}`}>
-              <div className="flex items-start justify-between gap-3">
-                <button type="button" onClick={() => toggle(i.id)} className="mt-0.5 text-muted">
-                  {checked ? <CheckSquare2 size={18} strokeWidth={2.1} className="text-primary" /> : <Square size={18} strokeWidth={2.1} />}
-                </button>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-display text-base font-semibold text-fg">{i.customerName}</h3>
-                  <p className="mt-1 text-[0.76rem] text-muted">{i.orderCode} · parcela {i.sequence}/{i.totalCount}</p>
-                </div>
-                <span className={overdue ? "status-pill pill-danger shrink-0" : "chip shrink-0"}>{date(i.dueDate)}</span>
-              </div>
-
-              <div className="mt-4 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Valor</p>
-                  <p className="mt-1 font-display text-xl font-semibold text-fg">{money(i.amount)}</p>
-                </div>
-                {href ? (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-success/25 bg-success-soft px-3 text-[0.78rem] font-semibold text-success"
-                  >
-                    <MessageCircle size={14} />
-                    Cobrar
-                  </a>
-                ) : null}
-              </div>
-
-              <form action={payInstallmentAction} className="mt-4 grid grid-cols-[1fr_auto] gap-2">
-                <input type="hidden" name="installmentId" value={i.id} />
-                <select className="field h-10 py-0 text-sm" name="paymentMethod" defaultValue="PIX">
-                  <option value="PIX">Pix</option>
-                  <option value="CASH">Dinheiro</option>
-                  <option value="DEBIT_CARD">Debito</option>
-                  <option value="CREDIT_CARD">Credito</option>
-                  <option value="BANK_SLIP">Boleto</option>
-                </select>
-                <button className="button-primary h-10 px-3 py-0 text-xs">Pagar</button>
-              </form>
-            </article>
-          );
-        })}
-      </div>
-
-      <div className="table-shell hidden overflow-x-auto md:block">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="w-10">
-                <button type="button" onClick={toggleAll} className="text-muted hover:text-primary transition">
-                  {allSelected ? <CheckSquare2 size={15} strokeWidth={2.1} /> : <Square size={15} strokeWidth={2.1} />}
-                </button>
-              </th>
-              <th>Cliente</th>
-              <th>Pedido</th>
-              <th>Parcela</th>
-              <th>Vencimento</th>
-              <th className="text-right">Valor</th>
-              <th className="text-right">Ação individual</th>
-            </tr>
-          </thead>
-          <tbody>
-            {installments.map((i) => {
-              const due = new Date(i.dueDate); due.setHours(0, 0, 0, 0);
-              const overdue = due < today;
-              const checked = selected.has(i.id);
-              return (
-                <tr key={i.id} className={checked ? "bg-primary-soft/40" : ""}>
-                  <td>
-                    <button type="button" onClick={() => toggle(i.id)} className="text-muted hover:text-primary transition">
-                      {checked ? <CheckSquare2 size={15} strokeWidth={2.1} className="text-primary" /> : <Square size={15} strokeWidth={2.1} />}
-                    </button>
-                  </td>
-                  <td className="max-w-[14rem] truncate font-semibold text-fg">{i.customerName}</td>
-                  <td className="text-muted">{i.orderCode}</td>
-                  <td><span className="chip">{i.sequence}/{i.totalCount}</span></td>
-                  <td><span className={overdue ? "status-pill pill-danger" : "text-muted"}>{date(i.dueDate)}</span></td>
-                  <td className="whitespace-nowrap text-right font-semibold text-fg">{money(i.amount)}</td>
-                  <td className="whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {buildWhatsAppUrl(i.customerPhone, i) ? (
-                        <a
-                          href={buildWhatsAppUrl(i.customerPhone, i)!}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="grid h-7 w-7 place-items-center rounded-lg text-muted transition hover:bg-success-soft hover:text-success"
-                          title="Enviar lembrete via WhatsApp"
-                        >
-                          <MessageCircle size={13} strokeWidth={2.1} />
-                        </a>
-                      ) : null}
-                      <form action={payInstallmentAction} className="flex items-center gap-2">
-                        <input type="hidden" name="installmentId" value={i.id} />
-                        <select className="field h-7 py-0 text-xs" name="paymentMethod" defaultValue="PIX">
-                          <option value="PIX">Pix</option>
-                          <option value="CASH">Dinheiro</option>
-                          <option value="DEBIT_CARD">Débito</option>
-                          <option value="CREDIT_CARD">Crédito</option>
-                          <option value="BANK_SLIP">Boleto</option>
-                        </select>
-                        <button className="button-primary h-7 px-2.5 py-0 text-xs">Pagar</button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {groups.map((group) => (
+        <CustomerCard key={group.customerName} group={group} today={today} />
+      ))}
     </div>
   );
 }
