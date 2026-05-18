@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
 import PDFDocument from "pdfkit";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -22,30 +21,6 @@ function fmt(value: number): string {
 function fmtDate(value: Date | string | null | undefined): string {
   if (!value) return "-";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
-}
-
-function getReceiptSecret() {
-  return process.env.AUTH_SECRET || process.env.ADMIN_SECRET || "dev-receipt-secret-change-before-production";
-}
-
-function receiptToken(orderId: string, code: string) {
-  return crypto.createHmac("sha256", getReceiptSecret()).update(`${orderId}:${code}`).digest("hex");
-}
-
-function isValidReceiptToken(orderId: string, code: string, token?: string | null) {
-  if (!token) return false;
-  const expected = receiptToken(orderId, code);
-  const expectedBuffer = Buffer.from(expected);
-  const tokenBuffer = Buffer.from(token);
-  return expectedBuffer.length === tokenBuffer.length && crypto.timingSafeEqual(expectedBuffer, tokenBuffer);
-}
-
-function whatsappPhone(value?: string | null): string {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("55")) return digits;
-  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
-  return digits;
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -87,14 +62,10 @@ export async function GET(
 
   if (!order) return NextResponse.json({ error: "Pedido nao encontrado." }, { status: 404 });
 
-  const publicToken = req.nextUrl.searchParams.get("token");
-  const tokenAccess = isValidReceiptToken(order.id, order.code, publicToken);
-  if (!tokenAccess) {
-    const session = await getSession();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!["ADMIN", "SALES", "FINANCE"].includes(session.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!["ADMIN", "SALES", "FINANCE"].includes(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const storeNameRaw = settings?.storeName ?? "Loja";
@@ -105,20 +76,10 @@ export async function GET(
   const discount = Number(order.discount);
   const fee = Number(order.fee);
   const total = Number(order.total);
-  const token = receiptToken(order.id, order.code);
-  const publicPdfUrl = new URL(req.url);
-  publicPdfUrl.search = "";
-  publicPdfUrl.searchParams.set("download", "1");
-  publicPdfUrl.searchParams.set("token", token);
-  const phone = whatsappPhone(order.customer?.phone);
-  const whatsappText = [
-    `Comprovante do pedido ${order.code} - ${storeNameRaw}`,
-    publicPdfUrl.toString()
-  ].join("\n");
-  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(whatsappText)}`;
-
   if (req.nextUrl.searchParams.get("download") === "1") {
-    const doc = new PDFDocument({ size: "A4", margin: 36 });
+    const compactWidth = 420;
+    const estimatedHeight = 430 + order.items.length * 34 + order.installments.length * 26 + (order.notes ? 52 : 0);
+    const doc = new PDFDocument({ size: [compactWidth, Math.max(620, estimatedHeight)], margin: 24 });
     const chunks: Buffer[] = [];
     const done = new Promise<Buffer>((resolve) => {
       doc.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
@@ -126,7 +87,7 @@ export async function GET(
     });
 
     const pageWidth = doc.page.width;
-    const margin = 36;
+    const margin = 24;
     const contentWidth = pageWidth - margin * 2;
     const purple = "#7b61ff";
     const ink = "#18171f";
@@ -166,31 +127,32 @@ export async function GET(
     function tableHeader(y: number) {
       doc.roundedRect(margin, y, contentWidth, 24, 6).fill("#f2eee5");
       doc.font("Helvetica-Bold").fontSize(8).fillColor("#746955");
-      doc.text("Produto", margin + 10, y + 8, { width: 250 });
-      doc.text("Qtd.", margin + 300, y + 8, { width: 44, align: "center" });
-      doc.text("Unit.", margin + 354, y + 8, { width: 70, align: "right" });
-      doc.text("Total", margin + 434, y + 8, { width: 80, align: "right" });
+      doc.text("Produto", margin + 10, y + 8, { width: 170 });
+      doc.text("Qtd.", margin + 190, y + 8, { width: 32, align: "center" });
+      doc.text("Unit.", margin + 232, y + 8, { width: 62, align: "right" });
+      doc.text("Total", margin + 304, y + 8, { width: 58, align: "right" });
     }
 
-    doc.rect(0, 0, pageWidth, 120).fill(ink);
-    doc.rect(pageWidth - 170, 0, 170, 120).fill(purple);
-    doc.font("Helvetica-Bold").fontSize(8).fillColor("#c9c2ff").text("COMPROVANTE DE VENDA", margin, 28);
-    doc.font("Helvetica-Bold").fontSize(25).fillColor("#ffffff").text(storeNameRaw, margin, 43, { width: 330 });
-    if (storeTaglineRaw) doc.font("Helvetica").fontSize(9).fillColor("#ded9ff").text(storeTaglineRaw, margin, 76, { width: 330 });
-    doc.font("Helvetica-Bold").fontSize(8).fillColor("#ded9ff").text("PEDIDO", pageWidth - 150, 30, { width: 110, align: "right" });
-    doc.font("Helvetica-Bold").fontSize(20).fillColor("#ffffff").text(order.code, pageWidth - 190, 47, { width: 150, align: "right" });
-    doc.roundedRect(pageWidth - 112, 78, 72, 20, 10).fill("#ffffff22");
-    doc.font("Helvetica-Bold").fontSize(8).fillColor("#ffffff").text(STATUS_LABELS[order.status] ?? order.status, pageWidth - 104, 84, { width: 56, align: "center" });
+    doc.rect(0, 0, pageWidth, 106).fill(ink);
+    doc.rect(pageWidth - 130, 0, 130, 106).fill(purple);
+    doc.font("Helvetica-Bold").fontSize(7).fillColor("#c9c2ff").text("COMPROVANTE DE VENDA", margin, 23);
+    doc.font("Helvetica-Bold").fontSize(18).fillColor("#ffffff").text(storeNameRaw, margin, 38, { width: 230 });
+    if (storeTaglineRaw) doc.font("Helvetica").fontSize(8).fillColor("#ded9ff").text(storeTaglineRaw, margin, 63, { width: 230 });
+    doc.font("Helvetica-Bold").fontSize(7).fillColor("#ded9ff").text("PEDIDO", pageWidth - 118, 25, { width: 90, align: "right" });
+    doc.font("Helvetica-Bold").fontSize(14).fillColor("#ffffff").text(order.code, pageWidth - 128, 40, { width: 100, align: "right" });
+    doc.roundedRect(pageWidth - 86, 66, 58, 18, 9).fill("#ffffff22");
+    doc.font("Helvetica-Bold").fontSize(7).fillColor("#ffffff").text(STATUS_LABELS[order.status] ?? order.status, pageWidth - 80, 72, { width: 46, align: "center" });
 
-    doc.y = 146;
+    doc.y = 126;
     const boxGap = 8;
-    const boxWidth = (contentWidth - boxGap * 3) / 4;
+    const boxWidth = (contentWidth - boxGap) / 2;
     infoBox("Emissao", fmtDate(order.createdAt), null, margin, doc.y, boxWidth);
-    infoBox("Cliente", order.customer?.name ?? "Venda avulsa", order.customer?.phone ?? null, margin + (boxWidth + boxGap), doc.y, boxWidth);
-    infoBox("Pagamento", PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod, order.channel, margin + (boxWidth + boxGap) * 2, doc.y, boxWidth);
-    infoBox("Total", fmt(total), `${order.items.length} item(ns)`, margin + (boxWidth + boxGap) * 3, doc.y, boxWidth);
+    infoBox("Cliente", order.customer?.name ?? "Venda avulsa", order.customer?.phone ?? null, margin + boxWidth + boxGap, doc.y, boxWidth);
+    doc.y += 66;
+    infoBox("Pagamento", PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod, order.channel, margin, doc.y, boxWidth);
+    infoBox("Total", fmt(total), `${order.items.length} item(ns)`, margin + boxWidth + boxGap, doc.y, boxWidth);
 
-    doc.y += 88;
+    doc.y += 82;
     doc.font("Helvetica-Bold").fontSize(10).fillColor(ink).text("ITENS DA VENDA", margin, doc.y);
     doc.y += 16;
     tableHeader(doc.y);
@@ -201,46 +163,47 @@ export async function GET(
         ? `${item.variant.product.name} - ${item.variant.color} / ${item.variant.size}`
         : (item.label ?? "Item avulso");
       const unitPrice = Number(item.unitPrice);
-      const rowHeight = Math.max(26, doc.heightOfString(name, { width: 250 }) + 10);
+      const rowHeight = Math.max(28, doc.heightOfString(name, { width: 170 }) + 12);
       ensureSpace(rowHeight + 10);
-      doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text(name, margin + 10, doc.y + 5, { width: 250 });
-      doc.font("Helvetica").fontSize(9).fillColor(ink).text(String(item.quantity), margin + 300, doc.y + 5, { width: 44, align: "center" });
-      doc.text(fmt(unitPrice), margin + 354, doc.y + 5, { width: 70, align: "right" });
-      doc.font("Helvetica-Bold").text(fmt(unitPrice * item.quantity), margin + 434, doc.y + 5, { width: 80, align: "right" });
+      doc.font("Helvetica-Bold").fontSize(8).fillColor(ink).text(name, margin + 10, doc.y + 5, { width: 170 });
+      doc.font("Helvetica").fontSize(8).fillColor(ink).text(String(item.quantity), margin + 190, doc.y + 5, { width: 32, align: "center" });
+      doc.text(fmt(unitPrice), margin + 232, doc.y + 5, { width: 62, align: "right" });
+      doc.font("Helvetica-Bold").text(fmt(unitPrice * item.quantity), margin + 304, doc.y + 5, { width: 58, align: "right" });
       doc.moveTo(margin, doc.y + rowHeight).lineTo(pageWidth - margin, doc.y + rowHeight).strokeColor(line).stroke();
       doc.y += rowHeight;
     }
 
     ensureSpace(138);
     const summaryY = doc.y + 16;
-    doc.roundedRect(margin, summaryY, 300, 92, 8).strokeColor(line).dash(3, { space: 3 }).stroke().undash();
+    doc.roundedRect(margin, summaryY, contentWidth, 68, 8).strokeColor(line).dash(3, { space: 3 }).stroke().undash();
     doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text("Resumo do atendimento", margin + 12, summaryY + 12);
     doc.font("Helvetica").fontSize(8).fillColor(muted).text(
       "Este comprovante registra a venda realizada pela loja. Guarde este documento para conferencia do pedido, forma de pagamento e eventuais combinados registrados na observacao.",
       margin + 12,
       summaryY + 28,
-      { width: 276, lineGap: 2 }
+      { width: contentWidth - 24, lineGap: 2 }
     );
 
-    const totalX = pageWidth - margin - 210;
-    doc.roundedRect(totalX, summaryY, 210, 92, 10).fill(ink);
-    doc.font("Helvetica").fontSize(9).fillColor("#ffffffcc").text("Subtotal", totalX + 14, summaryY + 14);
-    doc.text(fmt(subtotal), totalX + 90, summaryY + 14, { width: 106, align: "right" });
-    let totalLineY = summaryY + 31;
+    doc.y = summaryY + 84;
+    const totalX = margin;
+    doc.roundedRect(totalX, doc.y, contentWidth, 86, 10).fill(ink);
+    doc.font("Helvetica").fontSize(9).fillColor("#ffffffcc").text("Subtotal", totalX + 14, doc.y + 13);
+    doc.text(fmt(subtotal), totalX + 170, doc.y + 13, { width: contentWidth - 184, align: "right" });
+    let totalLineY = doc.y + 30;
     if (discount > 0) {
       doc.text("Desconto", totalX + 14, totalLineY);
-      doc.text(`- ${fmt(discount)}`, totalX + 90, totalLineY, { width: 106, align: "right" });
+      doc.text(`- ${fmt(discount)}`, totalX + 170, totalLineY, { width: contentWidth - 184, align: "right" });
       totalLineY += 17;
     }
     if (fee > 0) {
       doc.text("Taxa", totalX + 14, totalLineY);
-      doc.text(`+ ${fmt(fee)}`, totalX + 90, totalLineY, { width: 106, align: "right" });
+      doc.text(`+ ${fmt(fee)}`, totalX + 170, totalLineY, { width: contentWidth - 184, align: "right" });
       totalLineY += 17;
     }
-    doc.moveTo(totalX + 14, summaryY + 62).lineTo(totalX + 196, summaryY + 62).strokeColor("#ffffff33").stroke();
-    doc.font("Helvetica-Bold").fontSize(14).fillColor("#ffffff").text("Total pago", totalX + 14, summaryY + 70);
-    doc.text(fmt(total), totalX + 90, summaryY + 70, { width: 106, align: "right" });
-    doc.y = summaryY + 116;
+    doc.moveTo(totalX + 14, doc.y + 58).lineTo(totalX + contentWidth - 14, doc.y + 58).strokeColor("#ffffff33").stroke();
+    doc.font("Helvetica-Bold").fontSize(14).fillColor("#ffffff").text("Total pago", totalX + 14, doc.y + 66);
+    doc.text(fmt(total), totalX + 170, doc.y + 66, { width: contentWidth - 184, align: "right" });
+    doc.y += 110;
 
     if (order.installments.length > 0) {
       ensureSpace(80);
@@ -251,10 +214,10 @@ export async function GET(
       for (const inst of order.installments) {
         ensureSpace(28);
         doc.font("Helvetica").fontSize(9).fillColor(ink);
-        doc.text(`${inst.sequence}/${inst.totalCount}`, margin + 10, doc.y, { width: 70 });
-        doc.text(fmtDate(inst.dueDate), margin + 120, doc.y, { width: 100 });
-        doc.text(fmt(Number(inst.amount)), margin + 280, doc.y, { width: 90, align: "right" });
-        doc.text(inst.paidAt ? "Paga" : "Em aberto", margin + 410, doc.y, { width: 100, align: "right" });
+        doc.text(`${inst.sequence}/${inst.totalCount}`, margin + 10, doc.y, { width: 45 });
+        doc.text(fmtDate(inst.dueDate), margin + 88, doc.y, { width: 82 });
+        doc.text(fmt(Number(inst.amount)), margin + 220, doc.y, { width: 70, align: "right" });
+        doc.text(inst.paidAt ? "Paga" : "Em aberto", margin + 295, doc.y, { width: 68, align: "right" });
         doc.y += 23;
       }
     }
@@ -419,21 +382,6 @@ export async function GET(
       box-shadow: 0 10px 24px rgba(21, 19, 31, .18);
       cursor: pointer;
     }
-    .secondary-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 44px;
-      margin-left: 8px;
-      padding: 11px 18px;
-      background: #fffdf9;
-      color: #15131f;
-      border: 1px solid #ded2c0;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: 800;
-      cursor: pointer;
-    }
     .document-btn:focus-visible {
       outline: 3px solid rgba(21, 19, 31, .22);
       outline-offset: 3px;
@@ -539,9 +487,8 @@ export async function GET(
 <body>
   <div class="action-bar no-print">
     <div>
-      <a class="document-btn" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Enviar no WhatsApp</a>
-      <button class="secondary-btn" type="button" onclick="window.print()">Salvar PDF</button>
-      <div class="share-status">Envia um link seguro do PDF direto para o cliente.</div>
+      <a class="document-btn" href="?download=1" download="comprovante-${escapeHtml(order.code)}.pdf">Baixar comprovante</a>
+      <div class="share-status">PDF em tamanho compacto de comprovante.</div>
     </div>
   </div>
 
