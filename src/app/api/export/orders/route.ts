@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     escape(Number(o.discount).toFixed(2)),
     escape(Number(o.fee).toFixed(2)),
     escape(Number(o.total).toFixed(2)),
-    escape(o.createdAt.toISOString().slice(0, 10))
+    escape(new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(o.createdAt))
   ].join(","));
 
   const csv = [header, ...rows].join("\n");

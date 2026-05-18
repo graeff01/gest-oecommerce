@@ -27,6 +27,9 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" }
   });
 
+  const fmtBRT = (d: Date | null | undefined) =>
+    d ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(d) : "";
+
   const header = ["Tipo", "Título", "Categoria", "Valor", "Forma de Pagamento", "Vencimento", "Pago em", "Data de criação"].join(",");
   const rows = transactions.map((t) => [
     escape(t.type === "REVENUE" ? "Receita" : "Gasto"),
@@ -34,9 +37,9 @@ export async function GET(req: NextRequest) {
     escape(t.category),
     escape(Number(t.amount).toFixed(2)),
     escape(t.paymentMethod ?? ""),
-    escape(t.dueDate ? t.dueDate.toISOString().slice(0, 10) : ""),
-    escape(t.paidAt ? t.paidAt.toISOString().slice(0, 10) : ""),
-    escape(t.createdAt.toISOString().slice(0, 10))
+    escape(fmtBRT(t.dueDate)),
+    escape(fmtBRT(t.paidAt)),
+    escape(fmtBRT(t.createdAt))
   ].join(","));
 
   const csv = [header, ...rows].join("\n");

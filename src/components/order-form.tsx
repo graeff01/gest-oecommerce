@@ -165,6 +165,11 @@ export function OrderForm({ customers, variants }: { customers: Customer[]; vari
       alert("Adicione ao menos um produto antes de registrar a venda.");
       return;
     }
+    if (isCrediario && installmentCount > 0 && orderTotal / installmentCount < 0.5) {
+      e.preventDefault();
+      alert(`Cada parcela ficaria abaixo de R$ 0,50. Reduza o número de parcelas ou aumente o valor da venda.`);
+      return;
+    }
     // inject items
     const form = e.currentTarget;
     let itemsInput = form.querySelector<HTMLInputElement>('input[name="items"]');

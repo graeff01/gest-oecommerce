@@ -17,7 +17,11 @@ function fmt(value: number): string {
 
 function fmtDate(value: Date | string | null | undefined): string {
   if (!value) return "-";
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
+}
+
+function fmtDateTime(value: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(value);
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -350,7 +354,7 @@ export async function GET(
       ${notesHtml}
 
       <footer class="footer">
-        <span>Gerado em ${fmtDate(new Date())}</span>
+        <span>Gerado em ${fmtDateTime(new Date())}</span>
         <span>${storeName} - ${escapeHtml(order.code)}</span>
       </footer>
     </div>

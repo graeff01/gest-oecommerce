@@ -45,7 +45,7 @@ export function whatsappShareUrl(message: string) {
 }
 
 function friendlyName(name: string) {
-  return name.trim().split(/\s+/)[0] || name;
+  return name.trim().split(/\s+/)[0] || "Cliente";
 }
 
 export function buildCollectionMessage(input: CollectionMessageInput) {

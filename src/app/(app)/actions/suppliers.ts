@@ -5,45 +5,74 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function createSupplierAction(formData: FormData) {
-  await requireRole(["ADMIN", "STOCK"]);
-  const parsed = z.object({
-    name: z.string().min(2),
+export async function createSupplierAction(
+  _prev: { error?: string; success?: boolean } | null,
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  try {
+    await requireRole(["ADMIN", "STOCK"]);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Acesso negado." };
+  }
+  const result = z.object({
+    name: z.string().min(2, "Nome precisa ter ao menos 2 caracteres."),
     document: z.string().optional(),
     contact: z.string().optional(),
     phone: z.string().optional(),
     email: z.string().email().optional().or(z.literal("")),
     notes: z.string().optional()
-  }).parse(Object.fromEntries(formData));
+  }).safeParse(Object.fromEntries(formData));
 
-  await prisma.supplier.create({ data: { ...parsed, email: parsed.email || null } });
+  if (!result.success) return { error: result.error.errors[0].message };
+
+  try {
+    await prisma.supplier.create({ data: { ...result.data, email: result.data.email || null } });
+  } catch {
+    return { error: "Erro ao cadastrar fornecedor. Tente novamente." };
+  }
   revalidatePath("/fornecedores");
+  return { success: true };
 }
 
-export async function updateSupplierAction(formData: FormData) {
-  await requireRole(["ADMIN", "STOCK"]);
-  const parsed = z.object({
+export async function updateSupplierAction(
+  _prev: { error?: string; success?: boolean } | null,
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  try {
+    await requireRole(["ADMIN", "STOCK"]);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Acesso negado." };
+  }
+  const result = z.object({
     id: z.string().min(1),
-    name: z.string().min(2),
+    name: z.string().min(2, "Nome precisa ter ao menos 2 caracteres."),
     document: z.string().optional(),
     contact: z.string().optional(),
     phone: z.string().optional(),
     email: z.string().email().optional().or(z.literal("")),
     notes: z.string().optional()
-  }).parse(Object.fromEntries(formData));
+  }).safeParse(Object.fromEntries(formData));
 
-  await prisma.supplier.update({
-    where: { id: parsed.id },
-    data: {
-      name: parsed.name,
-      document: parsed.document || null,
-      contact: parsed.contact || null,
-      phone: parsed.phone || null,
-      email: parsed.email || null,
-      notes: parsed.notes || null
-    }
-  });
+  if (!result.success) return { error: result.error.errors[0].message };
+  const { id, ...data } = result.data;
+
+  try {
+    await prisma.supplier.update({
+      where: { id },
+      data: {
+        name: data.name,
+        document: data.document || null,
+        contact: data.contact || null,
+        phone: data.phone || null,
+        email: data.email || null,
+        notes: data.notes || null
+      }
+    });
+  } catch {
+    return { error: "Erro ao salvar fornecedor. Tente novamente." };
+  }
   revalidatePath("/fornecedores");
+  return { success: true };
 }
 
 export async function deleteSupplierAction(formData: FormData) {
