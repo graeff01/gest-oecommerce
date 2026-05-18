@@ -49,7 +49,11 @@ export async function deleteFinancialTransactionAction(formData: FormData) {
   const { id } = z.object({ id: z.string().min(1) }).parse(Object.fromEntries(formData));
 
   await prisma.$transaction(async (tx) => {
-    await tx.financialTransaction.delete({ where: { id } });
+    // Soft delete: preserva no banco para auditoria
+    await tx.financialTransaction.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    });
     await tx.auditLog.create({
       data: { userId: user.id, action: "DELETE_TRANSACTION", entity: "FinancialTransaction", entityId: id }
     });
@@ -167,9 +171,21 @@ export async function createPurchaseAction(
       }
     });
 
+    // Média ponderada: (estoque_atual × custo_atual + novas_unidades × novo_custo) / total
+    const variant = await tx.productVariant.findUniqueOrThrow({
+      where: { id: parsed.variantId },
+      select: { stockQuantity: true, costPrice: true }
+    });
+    const currentQty = variant.stockQuantity;
+    const currentCost = Number(variant.costPrice);
+    const totalQty = currentQty + parsed.quantity;
+    const weightedCost = totalQty > 0
+      ? Math.round(((currentQty * currentCost + parsed.quantity * parsed.unitCost) / totalQty) * 100) / 100
+      : parsed.unitCost;
+
     await tx.productVariant.update({
       where: { id: parsed.variantId },
-      data: { stockQuantity: { increment: parsed.quantity }, costPrice: parsed.unitCost }
+      data: { stockQuantity: { increment: parsed.quantity }, costPrice: weightedCost }
     });
 
     await tx.stockMovement.create({

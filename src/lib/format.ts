@@ -8,6 +8,11 @@ export function endOfDayBRT(dateStr: string): Date {
   return new Date(`${dateStr}T23:59:59.999-03:00`);
 }
 
+/** Interpreta "YYYY-MM-DD" como data no fuso de Brasília (UTC-3) para evitar problemas de UTC midnight */
+export function parseDateBRT(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00-03:00`);
+}
+
 export function money(value: number | string | { toString(): string }) {
   const amount = Number(value);
   return new Intl.NumberFormat("pt-BR", {

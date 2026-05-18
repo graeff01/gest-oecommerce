@@ -34,6 +34,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     : DEFAULT_FINANCE_CATEGORIES;
 
   const txFilter = {
+    deletedAt: null,
     ...dateFilter,
     ...(category ? { category } : {}),
     ...(type === "REVENUE" || type === "EXPENSE" ? { type: type as "REVENUE" | "EXPENSE" } : {})
@@ -41,6 +42,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   // categories list for filter dropdown
   const allCategories = await prisma.financialTransaction.findMany({
+    where: { deletedAt: null },
     select: { category: true },
     distinct: ["category"],
     orderBy: { category: "asc" }
@@ -51,7 +53,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const [totals, totalCount, transactions, monthOrders, stockVariants, openInstallments] = await Promise.all([
     prisma.financialTransaction.groupBy({
       by: ["type"],
-      where: dateFilter,
+      where: { deletedAt: null, ...dateFilter },
       _sum: { amount: true }
     }),
     prisma.financialTransaction.count({ where: txFilter }),
@@ -63,7 +65,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     }),
     prisma.order.findMany({
       where: { createdAt: { gte: monthStart }, status: { not: "CANCELED" } },
-      include: { items: true }
+      select: { total: true, paymentMethod: true, items: { select: { costPrice: true, quantity: true } } }
     }),
     prisma.productVariant.findMany({ select: { stockQuantity: true, costPrice: true } }),
     prisma.installment.findMany({ where: { paidAt: null }, select: { amount: true, dueDate: true } })
@@ -72,7 +74,11 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const revenue = Number(totals.find((t) => t.type === "REVENUE")?._sum.amount ?? 0);
   const expenses = Number(totals.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
   const balance = revenue - expenses;
-  const monthRevenue = monthOrders.reduce((sum, order) => sum + Number(order.total), 0);
+  // Receita do mês: pedidos não-crediário + parcelas crediário efetivamente pagas no mês
+  const monthRevenue = monthOrders.reduce((sum, order) => {
+    if (order.paymentMethod === "CREDIARIO") return sum;
+    return sum + Number(order.total);
+  }, 0);
   const productCost = monthOrders.flatMap((order) => order.items).reduce((sum, item) => sum + Number(item.costPrice) * item.quantity, 0);
   const stockValue = stockVariants.reduce((sum, variant) => sum + Number(variant.costPrice) * variant.stockQuantity, 0);
   const receivable = openInstallments.reduce((sum, installment) => sum + Number(installment.amount), 0);

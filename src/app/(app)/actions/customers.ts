@@ -55,6 +55,14 @@ export async function deleteCustomerAction(formData: FormData) {
     throw new Error("Não é possível excluir um cliente com pedidos registrados.");
   }
 
+  // Verifica parcelas em aberto via join (caso existam de pedidos já desvinculados)
+  const openInstallments = await prisma.installment.count({
+    where: { paidAt: null, order: { customerId: id } }
+  });
+  if (openInstallments > 0) {
+    throw new Error(`Não é possível excluir este cliente: há ${openInstallments} parcela(s) de crediário em aberto.`);
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.customer.delete({ where: { id } });
     await tx.auditLog.create({

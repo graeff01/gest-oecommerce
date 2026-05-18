@@ -14,13 +14,19 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const { q } = await searchParams;
   const search = q?.trim() ?? "";
 
+  // Remove formatação do termo de busca para comparar com telefones armazenados sem máscara
+  const searchDigits = search.replace(/\D/g, "");
+
   const customers = await prisma.customer.findMany({
     where: search ? {
       OR: [
         { name: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { phone: { contains: search, mode: "insensitive" } },
-        { document: { contains: search, mode: "insensitive" } }
+        // busca também pelos dígitos extraídos (cobre "(11) 98765" → "1198765")
+        ...(searchDigits.length >= 4 ? [{ phone: { contains: searchDigits, mode: "insensitive" as const } }] : []),
+        { document: { contains: search, mode: "insensitive" } },
+        ...(searchDigits.length >= 4 ? [{ document: { contains: searchDigits, mode: "insensitive" as const } }] : [])
       ]
     } : undefined,
     include: {

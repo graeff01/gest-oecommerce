@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   } : {};
 
   const transactions = await prisma.financialTransaction.findMany({
-    where: dateFilter,
+    where: { deletedAt: null, ...dateFilter },
     orderBy: { createdAt: "desc" }
   });
 

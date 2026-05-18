@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseDateBRT } from "@/lib/format";
 
 const decimal = z.coerce.number().min(0);
 
@@ -144,7 +145,7 @@ export async function createOrderAction(
           orderId: order.id,
           sequence: i + 1,
           totalCount: count,
-          dueDate: new Date(dateStr),
+          dueDate: parseDateBRT(dateStr),
           amount: (baseCents + (i === count - 1 ? remainder : 0)) / 100
         }))
       });
@@ -158,7 +159,7 @@ export async function createOrderAction(
             title: `Parcela ${i + 1}/${count} - ${code}`,
             category: "Crediário",
             amount,
-            dueDate: new Date(dateStr),
+            dueDate: parseDateBRT(dateStr),
             paidAt: null
           };
         })
@@ -228,13 +229,19 @@ export async function cancelOrderAction(formData: FormData) {
     }
 
     if (order.paymentMethod === "CREDIARIO") {
-      // remove lançamentos previstos filtrando pelo código do pedido (match exato no título)
-      const pendingTitles = order.installments
-        .filter((i) => i.paidAt === null)
-        .map((i) => `Parcela ${i.sequence}/${i.totalCount} - ${order.code}`);
-      if (pendingTitles.length > 0) {
+      // remove lançamentos previstos de cada parcela em aberto usando match fuzzy
+      // (cobre casos em que totalCount foi editado e o título antigo não existe mais)
+      const unpaidInstallments = order.installments.filter((i) => i.paidAt === null);
+      for (const inst of unpaidInstallments) {
         await tx.financialTransaction.deleteMany({
-          where: { title: { in: pendingTitles }, category: "Crediário", paidAt: null }
+          where: {
+            category: "Crediário",
+            paidAt: null,
+            OR: [
+              { title: `Parcela ${inst.sequence}/${inst.totalCount} - ${order.code}` },
+              { title: { startsWith: `Parcela ${inst.sequence}/`, endsWith: `- ${order.code}` } }
+            ]
+          }
         });
       }
 
@@ -300,12 +307,22 @@ export async function updateOrderAction(_: unknown, formData: FormData) {
 
   const order = await prisma.order.findUnique({
     where: { id },
-    select: { subtotal: true, total: true, status: true, paymentMethod: true, code: true }
+    include: { installments: true, _count: { select: { installments: { where: { paidAt: null } } } } }
   });
   if (!order) return { error: "Pedido não encontrado." };
   if (order.status === "CANCELED") return { error: "Não é possível editar um pedido cancelado." };
 
-  const newTotal = Math.max(0, Number(order.subtotal) - discount + fee);
+  // Impede trocar método de pagamento de crediário para outro enquanto houver parcelas em aberto
+  if (order.paymentMethod === "CREDIARIO" && paymentMethod && paymentMethod !== "CREDIARIO") {
+    const openCount = order._count.installments;
+    if (openCount > 0) {
+      return { error: `Não é possível alterar o método de pagamento: este pedido tem ${openCount} parcela(s) em aberto. Quite ou remova as parcelas antes.` };
+    }
+  }
+
+  const rawTotal = Number(order.subtotal) - discount + fee;
+  if (rawTotal < 0) return { error: `O desconto (${discount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) não pode ser maior que o subtotal mais taxas (${(Number(order.subtotal) + fee).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}).` };
+  const newTotal = rawTotal;
   const oldTotal = Number(order.total);
   const diff = Math.round((newTotal - oldTotal) * 100) / 100;
 
@@ -408,6 +425,7 @@ export async function payInstallmentAction(formData: FormData) {
       where: {
         category: "Crediário",
         paidAt: null,
+        deletedAt: null,
         OR: [
           { title },
           { title: { startsWith: `Parcela ${installment.sequence}/`, endsWith: `- ${installment.order.code}` } }
@@ -507,13 +525,20 @@ export async function returnOrderItemAction(
         }
       });
 
+      // Atualiza total do pedido subtraindo o valor devolvido (mínimo R$0,00)
+      const newOrderTotal = Math.max(0, Number(item.order.total) - refundAmount);
+      await tx.order.update({
+        where: { id: parsed.orderId },
+        data: { total: newOrderTotal }
+      });
+
       await tx.auditLog.create({
         data: {
           userId: user.id,
           action: "RETURN_ORDER_ITEM",
           entity: "OrderItem",
           entityId: item.id,
-          metadata: { orderId: parsed.orderId, quantity: parsed.quantity, reason: parsed.reason }
+          metadata: { orderId: parsed.orderId, quantity: parsed.quantity, reason: parsed.reason, refundAmount }
         }
       });
     });
@@ -566,11 +591,19 @@ export async function updateInstallmentsAction(
       const unpaid = order.installments.filter((i) => i.paidAt === null);
       const paidCount = order.installments.length - unpaid.length;
 
-      const pendingTitles = unpaid.map((i) => `Parcela ${i.sequence}/${i.totalCount} - ${order.code}`);
-      if (pendingTitles.length > 0) {
-        await tx.financialTransaction.deleteMany({
-          where: { title: { in: pendingTitles }, category: "Crediário", paidAt: null }
-        });
+      if (unpaid.length > 0) {
+        for (const inst of unpaid) {
+          await tx.financialTransaction.deleteMany({
+            where: {
+              category: "Crediário",
+              paidAt: null,
+              OR: [
+                { title: `Parcela ${inst.sequence}/${inst.totalCount} - ${order.code}` },
+                { title: { startsWith: `Parcela ${inst.sequence}/`, endsWith: `- ${order.code}` } }
+              ]
+            }
+          });
+        }
         await tx.installment.deleteMany({ where: { id: { in: unpaid.map((i) => i.id) } } });
       }
 
@@ -581,7 +614,7 @@ export async function updateInstallmentsAction(
       for (let i = 0; i < items.length; i++) {
         const seq = paidCount + i + 1;
         const amount = Math.round(items[i].amount * 100) / 100;
-        const dueDate = new Date(items[i].dueDate);
+        const dueDate = parseDateBRT(items[i].dueDate);
 
         await tx.installment.create({
           data: {
@@ -653,6 +686,7 @@ export async function payManyInstallmentsAction(formData: FormData) {
         where: {
           category: "Crediário",
           paidAt: null,
+          deletedAt: null,
           OR: [
             { title },
             { title: { startsWith: `Parcela ${inst.sequence}/`, endsWith: `- ${inst.order.code}` } }

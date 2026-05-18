@@ -40,8 +40,8 @@ export async function getDashboardData() {
         where: { createdAt: { gte: sevenDaysAgo }, status: { not: "CANCELED" } },
         select: { createdAt: true, total: true }
       }),
-      prisma.financialTransaction.findMany({ where: { createdAt: { gte: startOfMonth } } }),
-      prisma.financialTransaction.groupBy({ by: ["type"], _sum: { amount: true } }),
+      prisma.financialTransaction.findMany({ where: { deletedAt: null, createdAt: { gte: startOfMonth } } }),
+      prisma.financialTransaction.groupBy({ by: ["type"], where: { deletedAt: null }, _sum: { amount: true } }),
       // Raw query: variantes onde estoque <= minStock
       prisma.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM "ProductVariant" WHERE "stockQuantity" <= "minStock" ORDER BY "stockQuantity" ASC LIMIT 8

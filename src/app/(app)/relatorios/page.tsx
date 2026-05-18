@@ -33,7 +33,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const [orders, variants, transactions, currMonthOrders, prevMonthOrders] = await Promise.all([
     prisma.order.findMany({ where: orderFilter, include: { items: { include: { variant: { include: { product: true } } } } } }),
     prisma.productVariant.findMany({ include: { product: true }, orderBy: { stockQuantity: "asc" } }),
-    prisma.financialTransaction.findMany({ where: dateFilter }),
+    prisma.financialTransaction.findMany({ where: { deletedAt: null, ...dateFilter } }),
     prisma.order.findMany({
       where: { status: { not: "CANCELED" }, createdAt: { gte: currMonth.start, lte: currMonth.end } },
       select: { total: true, channel: true }
