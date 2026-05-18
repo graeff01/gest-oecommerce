@@ -81,9 +81,10 @@ export async function GET(
     const estimatedHeight = 430 + order.items.length * 34 + order.installments.length * 26 + (order.notes ? 52 : 0);
     const doc = new PDFDocument({ size: [compactWidth, Math.max(620, estimatedHeight)], margin: 24 });
     const chunks: Buffer[] = [];
-    const done = new Promise<Buffer>((resolve) => {
+    const done = new Promise<Buffer>((resolve, reject) => {
       doc.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
     });
 
     const pageWidth = doc.page.width;
@@ -239,7 +240,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="comprovante-${order.code}.pdf"`,
+        "Content-Disposition": `attachment; filename="comprovante-${order.code}.pdf"`,
         "Cache-Control": "no-store"
       }
     });
