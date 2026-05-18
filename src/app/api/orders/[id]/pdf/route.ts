@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 import PDFDocument from "pdfkit";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,30 @@ function fmt(value: number): string {
 function fmtDate(value: Date | string | null | undefined): string {
   if (!value) return "-";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
+}
+
+function getReceiptSecret() {
+  return process.env.AUTH_SECRET || process.env.ADMIN_SECRET || "dev-receipt-secret-change-before-production";
+}
+
+function receiptToken(orderId: string, code: string) {
+  return crypto.createHmac("sha256", getReceiptSecret()).update(`${orderId}:${code}`).digest("hex");
+}
+
+function isValidReceiptToken(orderId: string, code: string, token?: string | null) {
+  if (!token) return false;
+  const expected = receiptToken(orderId, code);
+  const expectedBuffer = Buffer.from(expected);
+  const tokenBuffer = Buffer.from(token);
+  return expectedBuffer.length === tokenBuffer.length && crypto.timingSafeEqual(expectedBuffer, tokenBuffer);
+}
+
+function whatsappPhone(value?: string | null): string {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("55")) return digits;
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+  return digits;
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -46,12 +71,6 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!["ADMIN", "SALES", "FINANCE"].includes(session.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const { id } = await params;
 
   const [order, settings] = await Promise.all([
@@ -68,6 +87,16 @@ export async function GET(
 
   if (!order) return NextResponse.json({ error: "Pedido nao encontrado." }, { status: 404 });
 
+  const publicToken = req.nextUrl.searchParams.get("token");
+  const tokenAccess = isValidReceiptToken(order.id, order.code, publicToken);
+  if (!tokenAccess) {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!["ADMIN", "SALES", "FINANCE"].includes(session.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const storeNameRaw = settings?.storeName ?? "Loja";
   const storeTaglineRaw = settings?.storeTagline ?? "";
   const storeName = escapeHtml(storeNameRaw);
@@ -76,6 +105,17 @@ export async function GET(
   const discount = Number(order.discount);
   const fee = Number(order.fee);
   const total = Number(order.total);
+  const token = receiptToken(order.id, order.code);
+  const publicPdfUrl = new URL(req.url);
+  publicPdfUrl.search = "";
+  publicPdfUrl.searchParams.set("download", "1");
+  publicPdfUrl.searchParams.set("token", token);
+  const phone = whatsappPhone(order.customer?.phone);
+  const whatsappText = [
+    `Comprovante do pedido ${order.code} - ${storeNameRaw}`,
+    publicPdfUrl.toString()
+  ].join("\n");
+  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(whatsappText)}`;
 
   if (req.nextUrl.searchParams.get("download") === "1") {
     const doc = new PDFDocument({ size: "A4", margin: 36 });
@@ -499,9 +539,9 @@ export async function GET(
 <body>
   <div class="action-bar no-print">
     <div>
-      <button class="document-btn" id="share-pdf" type="button">Enviar PDF no WhatsApp</button>
+      <a class="document-btn" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Enviar no WhatsApp</a>
       <button class="secondary-btn" type="button" onclick="window.print()">Salvar PDF</button>
-      <div class="share-status" id="share-status">No celular, escolha WhatsApp no compartilhamento.</div>
+      <div class="share-status">Envia um link seguro do PDF direto para o cliente.</div>
     </div>
   </div>
 
@@ -579,49 +619,6 @@ export async function GET(
       </footer>
     </div>
   </main>
-  <script>
-    const orderCode = ${JSON.stringify(order.code)};
-
-    function setStatus(message) {
-      const el = document.getElementById("share-status");
-      if (el) el.textContent = message;
-    }
-
-    async function sharePdf() {
-      const button = document.getElementById("share-pdf");
-      try {
-        button?.setAttribute("disabled", "true");
-        setStatus("Gerando PDF...");
-        const response = await fetch(window.location.pathname + "?download=1", { cache: "no-store" });
-        if (!response.ok) throw new Error("Falha ao gerar PDF.");
-        const blob = await response.blob();
-        const file = new File([blob], "comprovante-" + orderCode + ".pdf", { type: "application/pdf" });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-          await navigator.share({ files: [file], title: "Comprovante " + orderCode });
-          setStatus("PDF enviado para compartilhamento.");
-          return;
-        }
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        setStatus("PDF baixado. Anexe no WhatsApp.");
-      } catch (error) {
-        console.error(error);
-        setStatus("Este navegador nao permite enviar direto. Use Salvar PDF.");
-      } finally {
-        button?.removeAttribute("disabled");
-      }
-    }
-
-    document.getElementById("share-pdf")?.addEventListener("click", sharePdf);
-  </script>
 </body>
 </html>`;
 
