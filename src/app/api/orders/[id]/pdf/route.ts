@@ -130,6 +130,7 @@ export async function GET(
   <title>Comprovante ${escapeHtml(order.code)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: 80mm 297mm; margin: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #18171f;
@@ -139,34 +140,57 @@ export async function GET(
       margin: 0 auto;
     }
     @media print {
-      body { padding: 0; max-width: 100%; background: #fff; }
+      html, body { width: 80mm; min-width: 80mm; max-width: 80mm; background: #fff; }
+      body { padding: 0; margin: 0; }
       .no-print { display: none !important; }
-      .receipt { box-shadow: none; border-radius: 0; }
+      .receipt { width: 80mm; border: 0; box-shadow: none; border-radius: 0; }
+      .top { grid-template-columns: 1fr; gap: 10px; padding: 15px 14px; }
+      .receipt-title { text-align: left; }
+      .store-name { font-size: 19px; }
+      .order-code { font-size: 17px; }
+      .content { padding: 14px; }
+      .meta { grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 14px; }
+      .meta-box { min-height: 64px; border-radius: 9px; padding: 8px; }
+      .meta-label { font-size: 8px; margin-bottom: 5px; }
+      .meta-value { font-size: 11px; }
+      .meta-sub { font-size: 9px; }
+      .section { margin-top: 14px; }
+      .section h3 { font-size: 9px; margin-bottom: 7px; }
+      table { font-size: 10px; }
+      th { padding: 7px 5px; font-size: 7px; letter-spacing: .04em; }
+      td { padding: 8px 5px; }
+      .summary { grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
+      .terms { min-height: 0; border-radius: 9px; padding: 9px; font-size: 9px; }
+      .totals { border-radius: 10px; padding: 10px; }
+      .totals-row { font-size: 10px; margin-bottom: 6px; }
+      .totals-row.total { font-size: 14px; }
+      .notes { border-radius: 9px; padding: 9px; font-size: 9px; }
+      .footer { flex-direction: column; gap: 4px; margin-top: 14px; padding-top: 9px; font-size: 8px; }
     }
     .action-bar {
       display: flex;
       justify-content: center;
       margin: 0 auto 24px;
     }
-    .whatsapp-btn {
+    .document-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       min-height: 44px;
       padding: 11px 22px;
-      background: #12a150;
+      background: #15131f;
       color: #fff;
       text-decoration: none;
       border: none;
       border-radius: 999px;
       font-size: 14px;
       font-weight: 800;
-      box-shadow: 0 10px 24px rgba(18, 161, 80, .22);
+      box-shadow: 0 10px 24px rgba(21, 19, 31, .18);
       cursor: pointer;
     }
-    .whatsapp-btn:focus-visible {
-      outline: 3px solid rgba(18, 161, 80, .28);
+    .document-btn:focus-visible {
+      outline: 3px solid rgba(21, 19, 31, .22);
       outline-offset: 3px;
     }
     .legacy-print-btn {
@@ -270,8 +294,8 @@ export async function GET(
 <body>
   <div class="action-bar no-print">
     <div>
-      <button class="whatsapp-btn" id="share-receipt" type="button">Compartilhar imagem no WhatsApp</button>
-      <div class="share-status" id="share-status"></div>
+      <button class="document-btn" type="button" onclick="window.print()">Salvar PDF do comprovante</button>
+      <div class="share-status">No celular, salve como PDF e envie o arquivo pelo WhatsApp.</div>
     </div>
   </div>
 
@@ -349,108 +373,6 @@ export async function GET(
       </footer>
     </div>
   </main>
-
-  <script>
-    const orderCode = ${JSON.stringify(order.code)};
-
-    function setStatus(message) {
-      const el = document.getElementById("share-status");
-      if (el) el.textContent = message || "";
-    }
-
-    function downloadBlob(blob, fileName) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
-
-    async function receiptToBlob() {
-      const receipt = document.querySelector(".receipt");
-      if (!receipt) throw new Error("Comprovante nao encontrado.");
-
-      const rect = receipt.getBoundingClientRect();
-      const width = Math.ceil(rect.width);
-      const height = Math.ceil(rect.height);
-      const clone = receipt.cloneNode(true);
-      clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-      clone.style.width = width + "px";
-      clone.style.margin = "0";
-      clone.style.boxShadow = "none";
-
-      const css = Array.from(document.querySelectorAll("style")).map((style) => style.textContent || "").join("\\n");
-      const serialized = new XMLSerializer().serializeToString(clone);
-      const svg = [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">',
-        '<foreignObject width="100%" height="100%">',
-        '<div xmlns="http://www.w3.org/1999/xhtml">',
-        '<style>' + css + '</style>',
-        serialized,
-        '</div>',
-        '</foreignObject>',
-        '</svg>'
-      ].join("");
-
-      const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-      try {
-        const image = new Image();
-        image.decoding = "async";
-        image.src = svgUrl;
-        await image.decode();
-
-        const scale = Math.min(3, Math.max(2, window.devicePixelRatio || 2));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.ceil(width * scale);
-        canvas.height = Math.ceil(height * scale);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas indisponivel.");
-        ctx.fillStyle = "#fffdf9";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.scale(scale, scale);
-        ctx.drawImage(image, 0, 0);
-
-        return await new Promise((resolve, reject) => {
-          canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Nao foi possivel gerar a imagem.")), "image/png", 0.96);
-        });
-      } finally {
-        URL.revokeObjectURL(svgUrl);
-      }
-    }
-
-    async function shareReceipt() {
-      const button = document.getElementById("share-receipt");
-      const fileName = "comprovante-" + orderCode + ".png";
-      try {
-        if (button) button.setAttribute("disabled", "true");
-        setStatus("Gerando imagem do comprovante...");
-        const blob = await receiptToBlob();
-        const file = new File([blob], fileName, { type: "image/png" });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-          await navigator.share({
-            files: [file],
-            title: "Comprovante " + orderCode
-          });
-          setStatus("");
-          return;
-        }
-
-        downloadBlob(blob, fileName);
-        setStatus("Imagem baixada. Anexe o arquivo no WhatsApp.");
-      } catch (error) {
-        console.error(error);
-        setStatus("Nao foi possivel compartilhar automaticamente. Tente pelo celular ou baixe a imagem.");
-      } finally {
-        if (button) button.removeAttribute("disabled");
-      }
-    }
-
-    document.getElementById("share-receipt")?.addEventListener("click", shareReceipt);
-  </script>
 </body>
 </html>`;
 
