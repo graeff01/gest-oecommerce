@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSession, hashPassword, requireRole, requireUser, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -28,26 +27,43 @@ export async function updateStoreSettingsAction(formData: FormData) {
   revalidatePath("/configuracoes");
 }
 
-export async function createUserAction(formData: FormData) {
-  await requireRole(["ADMIN"]);
-  const parsed = z.object({
-    name: z.string().min(2),
-    email: z.string().email(),
-    password: z.string().min(8),
-    role: z.enum(["ADMIN", "FINANCE", "STOCK", "SALES"])
-  }).parse(Object.fromEntries(formData));
+export async function createUserAction(
+  _prev: { error?: string; success?: boolean } | null,
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  try {
+    await requireRole(["ADMIN"]);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Acesso negado." };
+  }
 
-  await prisma.user.create({
-    data: {
-      name: parsed.name,
-      email: parsed.email,
-      passwordHash: await hashPassword(parsed.password),
-      role: parsed.role
-    }
-  });
+  const result = z.object({
+    name: z.string().min(2, "Nome precisa ter ao menos 2 caracteres."),
+    email: z.string().email("Informe um e-mail válido."),
+    password: z.string().min(8, "Senha precisa ter ao menos 8 caracteres."),
+    role: z.enum(["ADMIN", "FINANCE", "STOCK", "SALES"])
+  }).safeParse(Object.fromEntries(formData));
+
+  if (!result.success) return { error: result.error.errors[0].message };
+
+  const existing = await prisma.user.findUnique({ where: { email: result.data.email } });
+  if (existing) return { error: "Este e-mail já está em uso." };
+
+  try {
+    await prisma.user.create({
+      data: {
+        name: result.data.name,
+        email: result.data.email,
+        passwordHash: await hashPassword(result.data.password),
+        role: result.data.role
+      }
+    });
+  } catch {
+    return { error: "Erro ao criar usuário. Tente novamente." };
+  }
 
   revalidatePath("/configuracoes");
-  redirect("/configuracoes");
+  return { success: true };
 }
 
 export async function saveFinanceCategoriesAction(formData: FormData) {

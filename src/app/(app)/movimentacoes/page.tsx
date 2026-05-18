@@ -81,6 +81,7 @@ export default async function MovimentacoesPage({
       />
 
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
+        <input type="hidden" name="page" value="1" />
         <label className="label w-full flex-1 sm:min-w-[200px] sm:w-auto">
           Produto
           <select className="field" name="product" defaultValue={productFilter ?? ""}>

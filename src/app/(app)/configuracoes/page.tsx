@@ -1,4 +1,4 @@
-import { AlertTriangle, DatabaseBackup, Download, ListChecks, ShieldCheck, Store, UserCircle, UsersRound } from "lucide-react";
+import { AlertTriangle, DatabaseBackup, Download, ListChecks, Store, UserCircle, UsersRound } from "lucide-react";
 import { connection } from "next/server";
 import { AnimatedShell } from "@/components/animated-shell";
 import { PageHeader } from "@/components/page-header";
@@ -6,10 +6,12 @@ import { ProfileForm } from "@/components/profile-form";
 import { ResponsiveFormPanel } from "@/components/responsive-form-panel";
 import { SettingsTabs } from "@/components/settings-tabs";
 import { StoreSettingsForm } from "@/components/store-settings-form";
+import { SettingsUserForm } from "@/components/settings-user-form";
+import { ToggleUserButton } from "@/components/toggle-user-button";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
-import { createUserAction, saveFinanceCategoriesAction, toggleUserActiveAction } from "../actions/settings";
+import { saveFinanceCategoriesAction } from "../actions/settings";
 import { DEFAULT_FINANCE_CATEGORIES } from "@/lib/settings";
 
 export default async function SettingsPage() {
@@ -201,36 +203,7 @@ export default async function SettingsPage() {
             content: (
               <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
                 <ResponsiveFormPanel title="Novo usuário">
-                <form action={createUserAction} className="surface-card grid gap-4 p-5">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-success to-success/70 text-primary-fg">
-                      <ShieldCheck size={17} strokeWidth={2.1} />
-                    </span>
-                    <div>
-                      <h2 className="font-display text-lg font-semibold tracking-tight text-fg">Novo usuário</h2>
-                      <p className="text-[0.76rem] font-normal text-muted">Crie acessos com perfil específico.</p>
-                    </div>
-                  </div>
-                  <label className="label">
-                    Nome<input className="field" name="name" required />
-                  </label>
-                  <label className="label">
-                    E-mail<input className="field" name="email" type="email" required />
-                  </label>
-                  <label className="label">
-                    Senha<input className="field" name="password" type="password" minLength={8} required />
-                  </label>
-                  <label className="label">
-                    Perfil
-                    <select className="field" name="role">
-                      <option value="ADMIN">Administrador</option>
-                      <option value="FINANCE">Financeiro</option>
-                      <option value="STOCK">Estoque</option>
-                      <option value="SALES">Vendas</option>
-                    </select>
-                  </label>
-                  <button className="button-primary">Criar usuário</button>
-                </form>
+                  <SettingsUserForm />
                 </ResponsiveFormPanel>
                 <div className="table-shell overflow-x-auto">
                   <table className="data-table">
@@ -252,12 +225,7 @@ export default async function SettingsPage() {
                               <span className="status-pill pill-primary">{user.role}</span>
                             </td>
                             <td>
-                              <form action={toggleUserActiveAction} className="flex items-center gap-2">
-                                <input type="hidden" name="id" value={user.id} />
-                                <button type="submit" className={`status-pill whitespace-nowrap transition hover:opacity-70 ${user.active ? "" : "pill-neutral"}`}>
-                                  {user.active ? "Ativo" : "Inativo"}
-                                </button>
-                              </form>
+                              <ToggleUserButton userId={user.id} active={user.active} />
                             </td>
                           </tr>
                         ))

@@ -119,6 +119,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       />
 
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
+        <input type="hidden" name="page" value="1" />
         <label className="label w-full min-w-[120px] flex-1 sm:w-auto">
           De<input className="field" name="from" type="date" defaultValue={from ?? ""} />
         </label>
