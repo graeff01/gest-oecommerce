@@ -20,14 +20,6 @@ function fmtDate(value: Date | string | null | undefined): string {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
 }
 
-function whatsappPhone(value?: string | null): string {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("55")) return digits;
-  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
-  return digits;
-}
-
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   PIX: "Pix",
   CREDIT_CARD: "Cartao credito",
@@ -48,7 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
@@ -81,47 +73,6 @@ export async function GET(
   const discount = Number(order.discount);
   const fee = Number(order.fee);
   const total = Number(order.total);
-
-  const itemMessageLines = order.items.map((item) => {
-    const name = item.variant
-      ? `${item.variant.product.name} - ${item.variant.color} / ${item.variant.size}`
-      : (item.label ?? "Item avulso");
-    const unitPrice = Number(item.unitPrice);
-    return `- ${item.quantity}x ${name}: ${fmt(unitPrice * item.quantity)}`;
-  });
-
-  const installmentsMessageLines = order.installments.length
-    ? [
-        "",
-        "Parcelas:",
-        ...order.installments.map((inst) => `${inst.sequence}/${inst.totalCount} - ${fmtDate(inst.dueDate)} - ${fmt(Number(inst.amount))} - ${inst.paidAt ? "Paga" : "Em aberto"}`)
-      ]
-    : [];
-
-  const receiptUrl = req.nextUrl.toString();
-  const whatsappMessage = [
-    `*${storeNameRaw}*`,
-    `Comprovante do pedido ${order.code}`,
-    "",
-    `Cliente: ${order.customer?.name ?? "Venda avulsa"}`,
-    `Data: ${fmtDate(order.createdAt)}`,
-    `Pagamento: ${PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod}`,
-    `Status: ${STATUS_LABELS[order.status] ?? order.status}`,
-    "",
-    "Itens:",
-    ...itemMessageLines,
-    "",
-    `Subtotal: ${fmt(subtotal)}`,
-    ...(discount > 0 ? [`Desconto: - ${fmt(discount)}`] : []),
-    ...(fee > 0 ? [`Taxa: + ${fmt(fee)}`] : []),
-    `Total: *${fmt(total)}*`,
-    ...installmentsMessageLines,
-    ...(order.notes ? ["", `Observacao: ${order.notes}`] : []),
-    "",
-    `Comprovante online: ${receiptUrl}`
-  ].join("\n");
-  const phone = whatsappPhone(order.customer?.phone);
-  const whatsappUrl = `https://wa.me/${phone ? phone : ""}?text=${encodeURIComponent(whatsappMessage)}`;
 
   const itemsHtml = order.items
     .map((item) => {
@@ -212,6 +163,7 @@ export async function GET(
       font-size: 14px;
       font-weight: 800;
       box-shadow: 0 10px 24px rgba(18, 161, 80, .22);
+      cursor: pointer;
     }
     .whatsapp-btn:focus-visible {
       outline: 3px solid rgba(18, 161, 80, .28);
@@ -228,6 +180,12 @@ export async function GET(
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
+    }
+    .share-status {
+      margin-top: 8px;
+      text-align: center;
+      font-size: 12px;
+      color: #6f675b;
     }
     .receipt {
       overflow: hidden;
@@ -311,7 +269,10 @@ export async function GET(
 </head>
 <body>
   <div class="action-bar no-print">
-    <a class="whatsapp-btn" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Enviar no WhatsApp</a>
+    <div>
+      <button class="whatsapp-btn" id="share-receipt" type="button">Compartilhar imagem no WhatsApp</button>
+      <div class="share-status" id="share-status"></div>
+    </div>
   </div>
 
   <main class="receipt">
@@ -389,6 +350,107 @@ export async function GET(
     </div>
   </main>
 
+  <script>
+    const orderCode = ${JSON.stringify(order.code)};
+
+    function setStatus(message) {
+      const el = document.getElementById("share-status");
+      if (el) el.textContent = message || "";
+    }
+
+    function downloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function receiptToBlob() {
+      const receipt = document.querySelector(".receipt");
+      if (!receipt) throw new Error("Comprovante nao encontrado.");
+
+      const rect = receipt.getBoundingClientRect();
+      const width = Math.ceil(rect.width);
+      const height = Math.ceil(rect.height);
+      const clone = receipt.cloneNode(true);
+      clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+      clone.style.width = width + "px";
+      clone.style.margin = "0";
+      clone.style.boxShadow = "none";
+
+      const css = Array.from(document.querySelectorAll("style")).map((style) => style.textContent || "").join("\\n");
+      const serialized = new XMLSerializer().serializeToString(clone);
+      const svg = [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">',
+        '<foreignObject width="100%" height="100%">',
+        '<div xmlns="http://www.w3.org/1999/xhtml">',
+        '<style>' + css + '</style>',
+        serialized,
+        '</div>',
+        '</foreignObject>',
+        '</svg>'
+      ].join("");
+
+      const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+      try {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = svgUrl;
+        await image.decode();
+
+        const scale = Math.min(3, Math.max(2, window.devicePixelRatio || 2));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(width * scale);
+        canvas.height = Math.ceil(height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas indisponivel.");
+        ctx.fillStyle = "#fffdf9";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(scale, scale);
+        ctx.drawImage(image, 0, 0);
+
+        return await new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Nao foi possivel gerar a imagem.")), "image/png", 0.96);
+        });
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    }
+
+    async function shareReceipt() {
+      const button = document.getElementById("share-receipt");
+      const fileName = "comprovante-" + orderCode + ".png";
+      try {
+        if (button) button.setAttribute("disabled", "true");
+        setStatus("Gerando imagem do comprovante...");
+        const blob = await receiptToBlob();
+        const file = new File([blob], fileName, { type: "image/png" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+          await navigator.share({
+            files: [file],
+            title: "Comprovante " + orderCode
+          });
+          setStatus("");
+          return;
+        }
+
+        downloadBlob(blob, fileName);
+        setStatus("Imagem baixada. Anexe o arquivo no WhatsApp.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Nao foi possivel compartilhar automaticamente. Tente pelo celular ou baixe a imagem.");
+      } finally {
+        if (button) button.removeAttribute("disabled");
+      }
+    }
+
+    document.getElementById("share-receipt")?.addEventListener("click", shareReceipt);
+  </script>
 </body>
 </html>`;
 
