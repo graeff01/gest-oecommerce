@@ -403,14 +403,21 @@ export async function payInstallmentAction(formData: FormData) {
 
     const title = `Parcela ${installment.sequence}/${installment.totalCount} - ${installment.order.code}`;
 
-    // atualiza o lançamento previsto se existir, senão cria um novo
+    // busca pelo título exato ou por qualquer variação de totalCount (caso tenha sido editado)
     const existing = await tx.financialTransaction.findFirst({
-      where: { title, category: "Crediário", paidAt: null }
+      where: {
+        category: "Crediário",
+        paidAt: null,
+        OR: [
+          { title },
+          { title: { startsWith: `Parcela ${installment.sequence}/`, endsWith: `- ${installment.order.code}` } }
+        ]
+      }
     });
     if (existing) {
       await tx.financialTransaction.update({
         where: { id: existing.id },
-        data: { paidAt: now, paymentMethod: method }
+        data: { paidAt: now, paymentMethod: method, title }
       });
     } else {
       await tx.financialTransaction.create({
@@ -643,12 +650,19 @@ export async function payManyInstallmentsAction(formData: FormData) {
 
       const title = `Parcela ${inst.sequence}/${inst.totalCount} - ${inst.order.code}`;
       const existing = await tx.financialTransaction.findFirst({
-        where: { title, category: "Crediário", paidAt: null }
+        where: {
+          category: "Crediário",
+          paidAt: null,
+          OR: [
+            { title },
+            { title: { startsWith: `Parcela ${inst.sequence}/`, endsWith: `- ${inst.order.code}` } }
+          ]
+        }
       });
       if (existing) {
         await tx.financialTransaction.update({
           where: { id: existing.id },
-          data: { paidAt: now, paymentMethod: method }
+          data: { paidAt: now, paymentMethod: method, title }
         });
       } else {
         await tx.financialTransaction.create({
