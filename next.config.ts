@@ -22,9 +22,15 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               "connect-src 'self' https:",
+              "media-src 'self' blob:",
+              "object-src 'none'",
+              "frame-src 'none'",
+              "manifest-src 'self'",
+              "worker-src 'self' blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
-              "form-action 'self'"
+              "form-action 'self'",
+              "upgrade-insecure-requests"
             ].join("; ")
           }
         ]

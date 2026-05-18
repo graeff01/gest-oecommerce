@@ -10,6 +10,7 @@ function escape(v: unknown): string {
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!["ADMIN", "SALES", "FINANCE"].includes(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const customers = await prisma.customer.findMany({
     include: { orders: true },
@@ -35,7 +36,8 @@ export async function GET() {
   return new NextResponse("﻿" + csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="clientes.csv"`
+      "Content-Disposition": `attachment; filename="clientes.csv"`,
+      "Cache-Control": "no-store"
     }
   });
 }

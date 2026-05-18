@@ -278,6 +278,24 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
+model SecurityEvent {
+  id          String   @id @default(cuid())
+  scope       String
+  action      String
+  identifier  String?
+  ipHash      String?
+  userAgent   String?
+  success     Boolean  @default(false)
+  severity    String   @default("info")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([scope, action, createdAt])
+  @@index([identifier, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([severity, createdAt])
+}
+
 model StoreSettings {
   id                 Int      @id @default(1)
   storeName          String   @default("LA WEAR")

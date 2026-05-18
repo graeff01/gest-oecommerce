@@ -5,30 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSession, destroySession, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_ATTEMPTS = 10;
-
-// In-memory store: ip -> { count, resetAt }
-const attempts = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = attempts.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return true;
-  }
-
-  entry.count += 1;
-  if (entry.count > MAX_ATTEMPTS) return false;
-  return true;
-}
-
-function resetRateLimit(ip: string) {
-  attempts.delete(ip);
-}
+import { checkSecurityRateLimit, clientIpFromHeaders, logSecurityEvent, normalizeIdentifier } from "@/lib/security";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -37,10 +14,31 @@ const loginSchema = z.object({
 
 export async function loginAction(_: unknown, formData: FormData) {
   const hdrs = await headers();
-  const ip = hdrs.get("x-forwarded-for")?.split(",")[0].trim() ?? hdrs.get("x-real-ip") ?? "unknown";
+  const ip = clientIpFromHeaders(hdrs);
+  const userAgent = hdrs.get("user-agent");
+  const email = normalizeIdentifier(String(formData.get("email") ?? "")) ?? "";
 
-  if (!checkRateLimit(ip)) {
-    return { error: "Muitas tentativas. Aguarde 5 minutos e tente novamente." };
+  const limit = await checkSecurityRateLimit({
+    scope: "app",
+    action: "LOGIN",
+    identifier: email,
+    ip,
+    windowSeconds: 10 * 60,
+    maxAttempts: 8,
+    blockSeconds: 10 * 60
+  });
+
+  if (!limit.allowed) {
+    await logSecurityEvent({
+      scope: "app",
+      action: "LOGIN_BLOCKED",
+      identifier: email,
+      ip,
+      userAgent,
+      success: false,
+      severity: "critical"
+    });
+    return { error: "Muitas tentativas. Aguarde 10 minutos e tente novamente." };
   }
 
   if (!process.env.DATABASE_URL) {
@@ -50,11 +48,12 @@ export async function loginAction(_: unknown, formData: FormData) {
   }
 
   const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
+    email,
     password: formData.get("password")
   });
 
   if (!parsed.success) {
+    await logSecurityEvent({ scope: "app", action: "LOGIN", identifier: email, ip, userAgent, success: false });
     return { error: "Informe e-mail e senha validos." };
   }
 
@@ -69,12 +68,23 @@ export async function loginAction(_: unknown, formData: FormData) {
   }
 
   if (!user?.active || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    await logSecurityEvent({ scope: "app", action: "LOGIN", identifier: parsed.data.email, ip, userAgent, success: false });
     return { error: "Credenciais invalidas." };
   }
 
-  resetRateLimit(ip);
   await createSession({ id: user.id, name: user.name, email: user.email, role: user.role });
-  await prisma.auditLog.create({ data: { userId: user.id, action: "LOGIN", entity: "User", entityId: user.id } });
+  await Promise.all([
+    prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "LOGIN",
+        entity: "User",
+        entityId: user.id,
+        metadata: { ip, userAgent }
+      }
+    }),
+    logSecurityEvent({ scope: "app", action: "LOGIN", identifier: user.email, ip, userAgent, success: true })
+  ]);
   redirect("/");
 }
 

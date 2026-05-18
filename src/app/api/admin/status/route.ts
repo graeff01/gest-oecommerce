@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ADMIN_COOKIE, getAdminSessionFromToken, verifyAdminCronSecret } from "@/lib/admin-auth";
 import { fetchAllClients } from "@/lib/admin-clients";
 import { sendAdminAlert } from "@/lib/admin-alerts";
+import { clientIpFromRequest, logSecurityEvent } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,14 @@ async function authorize(req: Request) {
 
 export async function GET(req: Request) {
   if (!(await authorize(req))) {
+    await logSecurityEvent({
+      scope: "admin",
+      action: "STATUS_UNAUTHORIZED",
+      ip: clientIpFromRequest(req),
+      userAgent: req.headers.get("user-agent"),
+      success: false,
+      severity: "critical"
+    });
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
@@ -37,18 +46,21 @@ export async function GET(req: Request) {
       });
     }
 
-    return NextResponse.json({
-      ok,
-      at: new Date().toISOString(),
-      latencyMs: Date.now() - startedAt,
-      masterDb: "ok",
-      clients: {
-        total: clients.length,
-        online,
-        offline: clients.length - online,
-        criticalAlerts: critical
-      }
-    });
+    return NextResponse.json(
+      {
+        ok,
+        at: new Date().toISOString(),
+        latencyMs: Date.now() - startedAt,
+        masterDb: "ok",
+        clients: {
+          total: clients.length,
+          online,
+          offline: clients.length - online,
+          criticalAlerts: critical
+        }
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     return NextResponse.json(
       {

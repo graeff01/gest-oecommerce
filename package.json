@@ -17,7 +17,9 @@
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "db:baseline": "tsx prisma/mark-baseline.ts",
     "deploy:release": "tsx prisma/mark-baseline.ts && prisma migrate deploy && tsx prisma/seed.ts",
-    "verify:backend": "tsx scripts/verify-backend.ts"
+    "verify:backend": "tsx scripts/verify-backend.ts",
+    "backup:admin": "tsx scripts/trigger-admin-backup.ts",
+    "health:check": "tsx scripts/check-health.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
