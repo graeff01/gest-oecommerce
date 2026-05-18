@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import PDFDocument from "pdfkit";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
 
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
@@ -40,7 +43,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
@@ -73,6 +76,171 @@ export async function GET(
   const discount = Number(order.discount);
   const fee = Number(order.fee);
   const total = Number(order.total);
+
+  if (req.nextUrl.searchParams.get("download") === "1") {
+    const doc = new PDFDocument({ size: "A4", margin: 36 });
+    const chunks: Buffer[] = [];
+    const done = new Promise<Buffer>((resolve) => {
+      doc.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+    });
+
+    const pageWidth = doc.page.width;
+    const margin = 36;
+    const contentWidth = pageWidth - margin * 2;
+    const purple = "#7b61ff";
+    const ink = "#18171f";
+    const muted = "#6f675b";
+    const line = "#e6dfd2";
+    const soft = "#faf7f0";
+
+    function ensureSpace(height: number) {
+      if (doc.y + height <= doc.page.height - margin) return;
+      doc.addPage();
+    }
+
+    function label(text: string, x: number, y: number, width: number) {
+      doc.font("Helvetica-Bold").fontSize(7).fillColor("#8b7f6b").text(text.toUpperCase(), x, y, {
+        width,
+        characterSpacing: 0.4
+      });
+    }
+
+    function infoBox(title: string, value: string, sub: string | null, x: number, y: number, width: number) {
+      doc.roundedRect(x, y, width, 58, 8).fillAndStroke(soft, line);
+      label(title, x + 10, y + 9, width - 20);
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(ink).text(value, x + 10, y + 24, {
+        width: width - 20,
+        height: 14,
+        ellipsis: true
+      });
+      if (sub) {
+        doc.font("Helvetica").fontSize(8).fillColor(muted).text(sub, x + 10, y + 39, {
+          width: width - 20,
+          height: 10,
+          ellipsis: true
+        });
+      }
+    }
+
+    function tableHeader(y: number) {
+      doc.roundedRect(margin, y, contentWidth, 24, 6).fill("#f2eee5");
+      doc.font("Helvetica-Bold").fontSize(8).fillColor("#746955");
+      doc.text("Produto", margin + 10, y + 8, { width: 250 });
+      doc.text("Qtd.", margin + 300, y + 8, { width: 44, align: "center" });
+      doc.text("Unit.", margin + 354, y + 8, { width: 70, align: "right" });
+      doc.text("Total", margin + 434, y + 8, { width: 80, align: "right" });
+    }
+
+    doc.rect(0, 0, pageWidth, 120).fill(ink);
+    doc.rect(pageWidth - 170, 0, 170, 120).fill(purple);
+    doc.font("Helvetica-Bold").fontSize(8).fillColor("#c9c2ff").text("COMPROVANTE DE VENDA", margin, 28);
+    doc.font("Helvetica-Bold").fontSize(25).fillColor("#ffffff").text(storeNameRaw, margin, 43, { width: 330 });
+    if (storeTaglineRaw) doc.font("Helvetica").fontSize(9).fillColor("#ded9ff").text(storeTaglineRaw, margin, 76, { width: 330 });
+    doc.font("Helvetica-Bold").fontSize(8).fillColor("#ded9ff").text("PEDIDO", pageWidth - 150, 30, { width: 110, align: "right" });
+    doc.font("Helvetica-Bold").fontSize(20).fillColor("#ffffff").text(order.code, pageWidth - 190, 47, { width: 150, align: "right" });
+    doc.roundedRect(pageWidth - 112, 78, 72, 20, 10).fill("#ffffff22");
+    doc.font("Helvetica-Bold").fontSize(8).fillColor("#ffffff").text(STATUS_LABELS[order.status] ?? order.status, pageWidth - 104, 84, { width: 56, align: "center" });
+
+    doc.y = 146;
+    const boxGap = 8;
+    const boxWidth = (contentWidth - boxGap * 3) / 4;
+    infoBox("Emissao", fmtDate(order.createdAt), null, margin, doc.y, boxWidth);
+    infoBox("Cliente", order.customer?.name ?? "Venda avulsa", order.customer?.phone ?? null, margin + (boxWidth + boxGap), doc.y, boxWidth);
+    infoBox("Pagamento", PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod, order.channel, margin + (boxWidth + boxGap) * 2, doc.y, boxWidth);
+    infoBox("Total", fmt(total), `${order.items.length} item(ns)`, margin + (boxWidth + boxGap) * 3, doc.y, boxWidth);
+
+    doc.y += 88;
+    doc.font("Helvetica-Bold").fontSize(10).fillColor(ink).text("ITENS DA VENDA", margin, doc.y);
+    doc.y += 16;
+    tableHeader(doc.y);
+    doc.y += 30;
+
+    for (const item of order.items) {
+      const name = item.variant
+        ? `${item.variant.product.name} - ${item.variant.color} / ${item.variant.size}`
+        : (item.label ?? "Item avulso");
+      const unitPrice = Number(item.unitPrice);
+      const rowHeight = Math.max(26, doc.heightOfString(name, { width: 250 }) + 10);
+      ensureSpace(rowHeight + 10);
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text(name, margin + 10, doc.y + 5, { width: 250 });
+      doc.font("Helvetica").fontSize(9).fillColor(ink).text(String(item.quantity), margin + 300, doc.y + 5, { width: 44, align: "center" });
+      doc.text(fmt(unitPrice), margin + 354, doc.y + 5, { width: 70, align: "right" });
+      doc.font("Helvetica-Bold").text(fmt(unitPrice * item.quantity), margin + 434, doc.y + 5, { width: 80, align: "right" });
+      doc.moveTo(margin, doc.y + rowHeight).lineTo(pageWidth - margin, doc.y + rowHeight).strokeColor(line).stroke();
+      doc.y += rowHeight;
+    }
+
+    ensureSpace(138);
+    const summaryY = doc.y + 16;
+    doc.roundedRect(margin, summaryY, 300, 92, 8).strokeColor(line).dash(3, { space: 3 }).stroke().undash();
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text("Resumo do atendimento", margin + 12, summaryY + 12);
+    doc.font("Helvetica").fontSize(8).fillColor(muted).text(
+      "Este comprovante registra a venda realizada pela loja. Guarde este documento para conferencia do pedido, forma de pagamento e eventuais combinados registrados na observacao.",
+      margin + 12,
+      summaryY + 28,
+      { width: 276, lineGap: 2 }
+    );
+
+    const totalX = pageWidth - margin - 210;
+    doc.roundedRect(totalX, summaryY, 210, 92, 10).fill(ink);
+    doc.font("Helvetica").fontSize(9).fillColor("#ffffffcc").text("Subtotal", totalX + 14, summaryY + 14);
+    doc.text(fmt(subtotal), totalX + 90, summaryY + 14, { width: 106, align: "right" });
+    let totalLineY = summaryY + 31;
+    if (discount > 0) {
+      doc.text("Desconto", totalX + 14, totalLineY);
+      doc.text(`- ${fmt(discount)}`, totalX + 90, totalLineY, { width: 106, align: "right" });
+      totalLineY += 17;
+    }
+    if (fee > 0) {
+      doc.text("Taxa", totalX + 14, totalLineY);
+      doc.text(`+ ${fmt(fee)}`, totalX + 90, totalLineY, { width: 106, align: "right" });
+      totalLineY += 17;
+    }
+    doc.moveTo(totalX + 14, summaryY + 62).lineTo(totalX + 196, summaryY + 62).strokeColor("#ffffff33").stroke();
+    doc.font("Helvetica-Bold").fontSize(14).fillColor("#ffffff").text("Total pago", totalX + 14, summaryY + 70);
+    doc.text(fmt(total), totalX + 90, summaryY + 70, { width: 106, align: "right" });
+    doc.y = summaryY + 116;
+
+    if (order.installments.length > 0) {
+      ensureSpace(80);
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(ink).text("PARCELAS DO CREDIARIO", margin, doc.y);
+      doc.y += 18;
+      tableHeader(doc.y);
+      doc.y += 30;
+      for (const inst of order.installments) {
+        ensureSpace(28);
+        doc.font("Helvetica").fontSize(9).fillColor(ink);
+        doc.text(`${inst.sequence}/${inst.totalCount}`, margin + 10, doc.y, { width: 70 });
+        doc.text(fmtDate(inst.dueDate), margin + 120, doc.y, { width: 100 });
+        doc.text(fmt(Number(inst.amount)), margin + 280, doc.y, { width: 90, align: "right" });
+        doc.text(inst.paidAt ? "Paga" : "Em aberto", margin + 410, doc.y, { width: 100, align: "right" });
+        doc.y += 23;
+      }
+    }
+
+    if (order.notes) {
+      ensureSpace(44);
+      doc.roundedRect(margin, doc.y + 8, contentWidth, 40, 8).fillAndStroke(soft, line);
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text("Observacao:", margin + 12, doc.y + 20);
+      doc.font("Helvetica").fontSize(9).fillColor(muted).text(order.notes, margin + 80, doc.y + 20, { width: contentWidth - 92 });
+      doc.y += 56;
+    }
+
+    doc.moveTo(margin, doc.page.height - 58).lineTo(pageWidth - margin, doc.page.height - 58).strokeColor(line).stroke();
+    doc.font("Helvetica").fontSize(8).fillColor("#9a8d79").text(`Gerado em ${fmtDate(new Date())}`, margin, doc.page.height - 44);
+    doc.text(`${storeNameRaw} - ${order.code}`, margin, doc.page.height - 44, { width: contentWidth, align: "right" });
+
+    doc.end();
+    const pdf = await done;
+    return new NextResponse(new Uint8Array(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="comprovante-${order.code}.pdf"`,
+        "Cache-Control": "no-store"
+      }
+    });
+  }
 
   const itemsHtml = order.items
     .map((item) => {
@@ -211,6 +379,21 @@ export async function GET(
       box-shadow: 0 10px 24px rgba(21, 19, 31, .18);
       cursor: pointer;
     }
+    .secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      margin-left: 8px;
+      padding: 11px 18px;
+      background: #fffdf9;
+      color: #15131f;
+      border: 1px solid #ded2c0;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
     .document-btn:focus-visible {
       outline: 3px solid rgba(21, 19, 31, .22);
       outline-offset: 3px;
@@ -316,8 +499,9 @@ export async function GET(
 <body>
   <div class="action-bar no-print">
     <div>
-      <button class="document-btn" type="button" onclick="window.print()">Salvar PDF do comprovante</button>
-      <div class="share-status">No celular, salve como PDF e envie o arquivo pelo WhatsApp.</div>
+      <button class="document-btn" id="share-pdf" type="button">Enviar PDF no WhatsApp</button>
+      <button class="secondary-btn" type="button" onclick="window.print()">Salvar PDF</button>
+      <div class="share-status" id="share-status">No celular, escolha WhatsApp no compartilhamento.</div>
     </div>
   </div>
 
@@ -395,6 +579,49 @@ export async function GET(
       </footer>
     </div>
   </main>
+  <script>
+    const orderCode = ${JSON.stringify(order.code)};
+
+    function setStatus(message) {
+      const el = document.getElementById("share-status");
+      if (el) el.textContent = message;
+    }
+
+    async function sharePdf() {
+      const button = document.getElementById("share-pdf");
+      try {
+        button?.setAttribute("disabled", "true");
+        setStatus("Gerando PDF...");
+        const response = await fetch(window.location.pathname + "?download=1", { cache: "no-store" });
+        if (!response.ok) throw new Error("Falha ao gerar PDF.");
+        const blob = await response.blob();
+        const file = new File([blob], "comprovante-" + orderCode + ".pdf", { type: "application/pdf" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+          await navigator.share({ files: [file], title: "Comprovante " + orderCode });
+          setStatus("PDF enviado para compartilhamento.");
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setStatus("PDF baixado. Anexe no WhatsApp.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Este navegador nao permite enviar direto. Use Salvar PDF.");
+      } finally {
+        button?.removeAttribute("disabled");
+      }
+    }
+
+    document.getElementById("share-pdf")?.addEventListener("click", sharePdf);
+  </script>
 </body>
 </html>`;
 
