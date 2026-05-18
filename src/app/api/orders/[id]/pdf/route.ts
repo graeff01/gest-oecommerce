@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import PDFDocument from "pdfkit";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-export const runtime = "nodejs";
 
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
@@ -43,9 +40,15 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!["ADMIN", "SALES", "FINANCE"].includes(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
 
   const [order, settings] = await Promise.all([
@@ -62,189 +65,12 @@ export async function GET(
 
   if (!order) return NextResponse.json({ error: "Pedido nao encontrado." }, { status: 404 });
 
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!["ADMIN", "SALES", "FINANCE"].includes(session.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const storeNameRaw = settings?.storeName ?? "Loja";
-  const storeTaglineRaw = settings?.storeTagline ?? "";
-  const storeName = escapeHtml(storeNameRaw);
-  const storeTagline = escapeHtml(storeTaglineRaw);
+  const storeName = escapeHtml(settings?.storeName ?? "Loja");
+  const storeTagline = escapeHtml(settings?.storeTagline ?? "");
   const subtotal = Number(order.subtotal);
   const discount = Number(order.discount);
   const fee = Number(order.fee);
   const total = Number(order.total);
-  if (req.nextUrl.searchParams.get("download") === "1") {
-    const compactWidth = 420;
-    const estimatedHeight = 430 + order.items.length * 34 + order.installments.length * 26 + (order.notes ? 52 : 0);
-    const doc = new PDFDocument({ size: [compactWidth, Math.max(620, estimatedHeight)], margin: 24 });
-    const chunks: Buffer[] = [];
-    const done = new Promise<Buffer>((resolve, reject) => {
-      doc.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
-      doc.on("error", reject);
-    });
-
-    const pageWidth = doc.page.width;
-    const margin = 24;
-    const contentWidth = pageWidth - margin * 2;
-    const purple = "#7b61ff";
-    const ink = "#18171f";
-    const muted = "#6f675b";
-    const line = "#e6dfd2";
-    const soft = "#faf7f0";
-
-    function ensureSpace(height: number) {
-      if (doc.y + height <= doc.page.height - margin) return;
-      doc.addPage();
-    }
-
-    function label(text: string, x: number, y: number, width: number) {
-      doc.font("Helvetica-Bold").fontSize(7).fillColor("#8b7f6b").text(text.toUpperCase(), x, y, {
-        width,
-        characterSpacing: 0.4
-      });
-    }
-
-    function infoBox(title: string, value: string, sub: string | null, x: number, y: number, width: number) {
-      doc.roundedRect(x, y, width, 58, 8).fillAndStroke(soft, line);
-      label(title, x + 10, y + 9, width - 20);
-      doc.font("Helvetica-Bold").fontSize(10).fillColor(ink).text(value, x + 10, y + 24, {
-        width: width - 20,
-        height: 14,
-        ellipsis: true
-      });
-      if (sub) {
-        doc.font("Helvetica").fontSize(8).fillColor(muted).text(sub, x + 10, y + 39, {
-          width: width - 20,
-          height: 10,
-          ellipsis: true
-        });
-      }
-    }
-
-    function tableHeader(y: number) {
-      doc.roundedRect(margin, y, contentWidth, 24, 6).fill("#f2eee5");
-      doc.font("Helvetica-Bold").fontSize(8).fillColor("#746955");
-      doc.text("Produto", margin + 10, y + 8, { width: 170 });
-      doc.text("Qtd.", margin + 190, y + 8, { width: 32, align: "center" });
-      doc.text("Unit.", margin + 232, y + 8, { width: 62, align: "right" });
-      doc.text("Total", margin + 304, y + 8, { width: 58, align: "right" });
-    }
-
-    doc.rect(0, 0, pageWidth, 106).fill(ink);
-    doc.rect(pageWidth - 130, 0, 130, 106).fill(purple);
-    doc.font("Helvetica-Bold").fontSize(7).fillColor("#c9c2ff").text("COMPROVANTE DE VENDA", margin, 23);
-    doc.font("Helvetica-Bold").fontSize(18).fillColor("#ffffff").text(storeNameRaw, margin, 38, { width: 230 });
-    if (storeTaglineRaw) doc.font("Helvetica").fontSize(8).fillColor("#ded9ff").text(storeTaglineRaw, margin, 63, { width: 230 });
-    doc.font("Helvetica-Bold").fontSize(7).fillColor("#ded9ff").text("PEDIDO", pageWidth - 118, 25, { width: 90, align: "right" });
-    doc.font("Helvetica-Bold").fontSize(14).fillColor("#ffffff").text(order.code, pageWidth - 128, 40, { width: 100, align: "right" });
-    doc.roundedRect(pageWidth - 86, 66, 58, 18, 9).fill("#ffffff22");
-    doc.font("Helvetica-Bold").fontSize(7).fillColor("#ffffff").text(STATUS_LABELS[order.status] ?? order.status, pageWidth - 80, 72, { width: 46, align: "center" });
-
-    doc.y = 126;
-    const boxGap = 8;
-    const boxWidth = (contentWidth - boxGap) / 2;
-    infoBox("Emissao", fmtDate(order.createdAt), null, margin, doc.y, boxWidth);
-    infoBox("Cliente", order.customer?.name ?? "Venda avulsa", order.customer?.phone ?? null, margin + boxWidth + boxGap, doc.y, boxWidth);
-    doc.y += 66;
-    infoBox("Pagamento", PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod, order.channel, margin, doc.y, boxWidth);
-    infoBox("Total", fmt(total), `${order.items.length} item(ns)`, margin + boxWidth + boxGap, doc.y, boxWidth);
-
-    doc.y += 82;
-    doc.font("Helvetica-Bold").fontSize(10).fillColor(ink).text("ITENS DA VENDA", margin, doc.y);
-    doc.y += 16;
-    tableHeader(doc.y);
-    doc.y += 30;
-
-    for (const item of order.items) {
-      const name = item.variant
-        ? `${item.variant.product.name} - ${item.variant.color} / ${item.variant.size}`
-        : (item.label ?? "Item avulso");
-      const unitPrice = Number(item.unitPrice);
-      const rowHeight = Math.max(28, doc.heightOfString(name, { width: 170 }) + 12);
-      ensureSpace(rowHeight + 10);
-      doc.font("Helvetica-Bold").fontSize(8).fillColor(ink).text(name, margin + 10, doc.y + 5, { width: 170 });
-      doc.font("Helvetica").fontSize(8).fillColor(ink).text(String(item.quantity), margin + 190, doc.y + 5, { width: 32, align: "center" });
-      doc.text(fmt(unitPrice), margin + 232, doc.y + 5, { width: 62, align: "right" });
-      doc.font("Helvetica-Bold").text(fmt(unitPrice * item.quantity), margin + 304, doc.y + 5, { width: 58, align: "right" });
-      doc.moveTo(margin, doc.y + rowHeight).lineTo(pageWidth - margin, doc.y + rowHeight).strokeColor(line).stroke();
-      doc.y += rowHeight;
-    }
-
-    ensureSpace(138);
-    const summaryY = doc.y + 16;
-    doc.roundedRect(margin, summaryY, contentWidth, 68, 8).strokeColor(line).dash(3, { space: 3 }).stroke().undash();
-    doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text("Resumo do atendimento", margin + 12, summaryY + 12);
-    doc.font("Helvetica").fontSize(8).fillColor(muted).text(
-      "Este comprovante registra a venda realizada pela loja. Guarde este documento para conferencia do pedido, forma de pagamento e eventuais combinados registrados na observacao.",
-      margin + 12,
-      summaryY + 28,
-      { width: contentWidth - 24, lineGap: 2 }
-    );
-
-    doc.y = summaryY + 84;
-    const totalX = margin;
-    doc.roundedRect(totalX, doc.y, contentWidth, 86, 10).fill(ink);
-    doc.font("Helvetica").fontSize(9).fillColor("#ffffffcc").text("Subtotal", totalX + 14, doc.y + 13);
-    doc.text(fmt(subtotal), totalX + 170, doc.y + 13, { width: contentWidth - 184, align: "right" });
-    let totalLineY = doc.y + 30;
-    if (discount > 0) {
-      doc.text("Desconto", totalX + 14, totalLineY);
-      doc.text(`- ${fmt(discount)}`, totalX + 170, totalLineY, { width: contentWidth - 184, align: "right" });
-      totalLineY += 17;
-    }
-    if (fee > 0) {
-      doc.text("Taxa", totalX + 14, totalLineY);
-      doc.text(`+ ${fmt(fee)}`, totalX + 170, totalLineY, { width: contentWidth - 184, align: "right" });
-      totalLineY += 17;
-    }
-    doc.moveTo(totalX + 14, doc.y + 58).lineTo(totalX + contentWidth - 14, doc.y + 58).strokeColor("#ffffff33").stroke();
-    doc.font("Helvetica-Bold").fontSize(14).fillColor("#ffffff").text("Total pago", totalX + 14, doc.y + 66);
-    doc.text(fmt(total), totalX + 170, doc.y + 66, { width: contentWidth - 184, align: "right" });
-    doc.y += 110;
-
-    if (order.installments.length > 0) {
-      ensureSpace(80);
-      doc.font("Helvetica-Bold").fontSize(10).fillColor(ink).text("PARCELAS DO CREDIARIO", margin, doc.y);
-      doc.y += 18;
-      tableHeader(doc.y);
-      doc.y += 30;
-      for (const inst of order.installments) {
-        ensureSpace(28);
-        doc.font("Helvetica").fontSize(9).fillColor(ink);
-        doc.text(`${inst.sequence}/${inst.totalCount}`, margin + 10, doc.y, { width: 45 });
-        doc.text(fmtDate(inst.dueDate), margin + 88, doc.y, { width: 82 });
-        doc.text(fmt(Number(inst.amount)), margin + 220, doc.y, { width: 70, align: "right" });
-        doc.text(inst.paidAt ? "Paga" : "Em aberto", margin + 295, doc.y, { width: 68, align: "right" });
-        doc.y += 23;
-      }
-    }
-
-    if (order.notes) {
-      ensureSpace(44);
-      doc.roundedRect(margin, doc.y + 8, contentWidth, 40, 8).fillAndStroke(soft, line);
-      doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text("Observacao:", margin + 12, doc.y + 20);
-      doc.font("Helvetica").fontSize(9).fillColor(muted).text(order.notes, margin + 80, doc.y + 20, { width: contentWidth - 92 });
-      doc.y += 56;
-    }
-
-    doc.moveTo(margin, doc.page.height - 58).lineTo(pageWidth - margin, doc.page.height - 58).strokeColor(line).stroke();
-    doc.font("Helvetica").fontSize(8).fillColor("#9a8d79").text(`Gerado em ${fmtDate(new Date())}`, margin, doc.page.height - 44);
-    doc.text(`${storeNameRaw} - ${order.code}`, margin, doc.page.height - 44, { width: contentWidth, align: "right" });
-
-    doc.end();
-    const pdf = await done;
-    return new NextResponse(new Uint8Array(pdf), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="comprovante-${order.code}.pdf"`,
-        "Cache-Control": "no-store"
-      }
-    });
-  }
 
   const itemsHtml = order.items
     .map((item) => {
@@ -302,110 +128,43 @@ export async function GET(
   <title>Comprovante ${escapeHtml(order.code)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    @page { size: A4; margin: 12mm; }
+    @page { size: A4; margin: 10mm; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #18171f;
       background: #f6f3ee;
-      padding: 28px;
-      max-width: 760px;
+      padding: 24px;
       margin: 0 auto;
-    }
-    @media print {
-      html, body { width: auto; min-width: 0; max-width: none; background: #fff; }
-      body { padding: 0; margin: 0; max-width: none; }
-      .no-print { display: none !important; }
-      .receipt {
-        width: 100%;
-        max-width: none;
-        overflow: visible;
-        border: 1px solid #e6dfd2;
-        box-shadow: none;
-        border-radius: 12px;
-        break-inside: avoid;
-      }
-      .top {
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 18px;
-        padding: 22px 24px;
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-      }
-      .store-name { font-size: 23px; }
-      .order-code { font-size: 20px; }
-      .content { padding: 22px 24px 24px; }
-      .meta { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-bottom: 18px; }
-      .meta-box { min-height: 74px; border-radius: 10px; padding: 10px; break-inside: avoid; }
-      .meta-label { font-size: 9px; margin-bottom: 6px; }
-      .meta-value { font-size: 12px; overflow-wrap: anywhere; }
-      .meta-sub { font-size: 10px; overflow-wrap: anywhere; }
-      .section { margin-top: 18px; break-inside: avoid; }
-      .section h3 { font-size: 10px; margin-bottom: 8px; }
-      table { table-layout: fixed; font-size: 11px; page-break-inside: auto; }
-      thead { display: table-header-group; }
-      tr { break-inside: avoid; page-break-inside: avoid; }
-      th { padding: 8px 7px; font-size: 8px; letter-spacing: .05em; }
-      td { padding: 9px 7px; }
-      th:first-child, td:first-child { width: 44%; }
-      .item-name { overflow-wrap: anywhere; }
-      .summary { grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; margin-top: 14px; break-inside: avoid; }
-      .terms { min-height: 92px; border-radius: 10px; padding: 11px; font-size: 10px; }
-      .totals {
-        border-radius: 12px;
-        padding: 12px;
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-      }
-      .totals-row { font-size: 11px; margin-bottom: 7px; }
-      .totals-row.total { font-size: 16px; }
-      .notes { border-radius: 10px; padding: 11px; font-size: 10px; break-inside: avoid; }
-      .footer { margin-top: 16px; padding-top: 10px; font-size: 9px; }
     }
     .action-bar {
       display: flex;
       justify-content: center;
-      margin: 0 auto 24px;
+      margin: 0 auto 20px;
     }
     .document-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
       min-height: 44px;
       padding: 11px 22px;
       background: #15131f;
       color: #fff;
-      text-decoration: none;
-      border: none;
+      border: 0;
       border-radius: 999px;
       font-size: 14px;
       font-weight: 800;
+      cursor: pointer;
       box-shadow: 0 10px 24px rgba(21, 19, 31, .18);
-      cursor: pointer;
     }
-    .document-btn:focus-visible {
-      outline: 3px solid rgba(21, 19, 31, .22);
-      outline-offset: 3px;
-    }
-    .legacy-print-btn {
-      display: block;
-      margin: 0 auto 24px;
-      padding: 10px 28px;
-      background: #15131f;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .share-status {
+    .hint {
       margin-top: 8px;
       text-align: center;
       font-size: 12px;
       color: #6f675b;
     }
     .receipt {
+      width: min(100%, 760px);
+      margin: 0 auto;
       overflow: hidden;
       background: #fffdf9;
       border: 1px solid #e6dfd2;
@@ -414,7 +173,7 @@ export async function GET(
     }
     .top {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 18px;
       align-items: start;
       padding: 26px 28px;
@@ -422,8 +181,8 @@ export async function GET(
       background: linear-gradient(135deg, #15131f 0%, #2a2141 55%, #7b61ff 100%);
     }
     .eyebrow { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .16em; opacity: .72; }
-    .store-name { font-size: 25px; font-weight: 900; letter-spacing: -.03em; margin-top: 5px; }
-    .store-tagline { max-width: 420px; font-size: 12px; opacity: .78; margin-top: 3px; }
+    .store-name { font-size: 25px; font-weight: 900; letter-spacing: -.03em; margin-top: 5px; overflow-wrap: anywhere; }
+    .store-tagline { max-width: 420px; font-size: 12px; opacity: .78; margin-top: 3px; overflow-wrap: anywhere; }
     .receipt-title { text-align: right; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .13em; opacity: .78; }
     .order-code { margin-top: 7px; font-size: 22px; font-weight: 900; letter-spacing: -.02em; }
     .status-badge {
@@ -437,25 +196,26 @@ export async function GET(
       font-weight: 800;
     }
     .content { padding: 24px 28px 28px; }
-    .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px; }
+    .meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 22px; }
     .meta-box { min-height: 78px; background: #faf7f0; border: 1px solid #eee4d7; border-radius: 12px; padding: 11px 12px; }
     .meta-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #8b7f6b; margin-bottom: 7px; }
-    .meta-value { font-size: 13px; font-weight: 800; color: #18171f; line-height: 1.25; }
-    .meta-sub { font-size: 11px; color: #6f675b; margin-top: 3px; line-height: 1.3; }
+    .meta-value { font-size: 13px; font-weight: 800; color: #18171f; line-height: 1.25; overflow-wrap: anywhere; }
+    .meta-sub { font-size: 11px; color: #6f675b; margin-top: 3px; line-height: 1.3; overflow-wrap: anywhere; }
     .section { margin-top: 22px; }
     .section h3 { font-size: 12px; font-weight: 900; margin: 0 0 10px; color: #18171f; text-transform: uppercase; letter-spacing: .1em; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
     thead tr { background: #f2eee5; }
     th { padding: 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #746955; }
     td { padding: 11px 10px; border-bottom: 1px solid #eee7dc; vertical-align: top; }
-    .item-name { font-weight: 700; color: #27232e; }
+    th:first-child, td:first-child { width: 48%; }
+    .item-name { font-weight: 700; color: #27232e; overflow-wrap: anywhere; }
     .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .center { text-align: center; }
     .right { text-align: right; }
     .strong { font-weight: 900; }
     .summary {
       display: grid;
-      grid-template-columns: 1fr 280px;
+      grid-template-columns: minmax(0, 1fr) 280px;
       gap: 22px;
       align-items: end;
       margin-top: 18px;
@@ -472,8 +232,36 @@ export async function GET(
     .totals { background: #15131f; color: #fff; border-radius: 14px; padding: 14px; }
     .totals-row { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; margin-bottom: 8px; color: rgba(255,255,255,.78); }
     .totals-row.total { border-top: 1px solid rgba(255,255,255,.18); margin-top: 10px; padding-top: 12px; font-size: 18px; font-weight: 900; color: #fff; }
-    .notes { margin-top: 18px; background:#faf7f0; border:1px solid #eee4d7; border-radius:12px; padding:13px; font-size:12px; color:#554d42; }
+    .notes { margin-top: 18px; background:#faf7f0; border:1px solid #eee4d7; border-radius:12px; padding:13px; font-size:12px; color:#554d42; overflow-wrap: anywhere; }
     .footer { display:flex; justify-content:space-between; gap:16px; margin-top: 24px; font-size: 11px; color: #9a8d79; border-top: 1px solid #eee4d7; padding-top: 14px; }
+    @media print {
+      html, body { background: #fff; }
+      body { padding: 0; }
+      .no-print { display: none !important; }
+      .receipt {
+        width: 100%;
+        max-width: none;
+        border-radius: 12px;
+        box-shadow: none;
+        overflow: visible;
+      }
+      .top, .totals {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .top { padding: 22px 24px; }
+      .content { padding: 22px 24px 24px; }
+      .meta { gap: 9px; margin-bottom: 18px; }
+      .meta-box, .summary, .terms, .totals, .notes, tr { break-inside: avoid; page-break-inside: avoid; }
+      .section { margin-top: 18px; }
+      table { font-size: 11px; }
+      th { padding: 8px 7px; font-size: 8px; letter-spacing: .05em; }
+      td { padding: 9px 7px; }
+      .terms { min-height: 92px; font-size: 10px; }
+      .totals-row { font-size: 11px; }
+      .totals-row.total { font-size: 16px; }
+      .footer { font-size: 9px; }
+    }
     @media (max-width: 640px) {
       body { padding: 12px; }
       .top, .content { padding: 20px; }
@@ -488,8 +276,8 @@ export async function GET(
 <body>
   <div class="action-bar no-print">
     <div>
-      <a class="document-btn" href="?download=1" download="comprovante-${escapeHtml(order.code)}.pdf">Baixar comprovante</a>
-      <div class="share-status">PDF em tamanho compacto de comprovante.</div>
+      <button class="document-btn" type="button" onclick="window.print()">Baixar comprovante</button>
+      <div class="hint">Na janela de impressao, escolha "Salvar como PDF".</div>
     </div>
   </div>
 
