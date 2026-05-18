@@ -130,7 +130,7 @@ export async function GET(
   <title>Comprovante ${escapeHtml(order.code)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    @page { size: 80mm 297mm; margin: 0; }
+    @page { size: A4; margin: 12mm; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #18171f;
@@ -140,32 +140,54 @@ export async function GET(
       margin: 0 auto;
     }
     @media print {
-      html, body { width: 80mm; min-width: 80mm; max-width: 80mm; background: #fff; }
-      body { padding: 0; margin: 0; }
+      html, body { width: auto; min-width: 0; max-width: none; background: #fff; }
+      body { padding: 0; margin: 0; max-width: none; }
       .no-print { display: none !important; }
-      .receipt { width: 80mm; border: 0; box-shadow: none; border-radius: 0; }
-      .top { grid-template-columns: 1fr; gap: 10px; padding: 15px 14px; }
-      .receipt-title { text-align: left; }
-      .store-name { font-size: 19px; }
-      .order-code { font-size: 17px; }
-      .content { padding: 14px; }
-      .meta { grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 14px; }
-      .meta-box { min-height: 64px; border-radius: 9px; padding: 8px; }
-      .meta-label { font-size: 8px; margin-bottom: 5px; }
-      .meta-value { font-size: 11px; }
-      .meta-sub { font-size: 9px; }
-      .section { margin-top: 14px; }
-      .section h3 { font-size: 9px; margin-bottom: 7px; }
-      table { font-size: 10px; }
-      th { padding: 7px 5px; font-size: 7px; letter-spacing: .04em; }
-      td { padding: 8px 5px; }
-      .summary { grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
-      .terms { min-height: 0; border-radius: 9px; padding: 9px; font-size: 9px; }
-      .totals { border-radius: 10px; padding: 10px; }
-      .totals-row { font-size: 10px; margin-bottom: 6px; }
-      .totals-row.total { font-size: 14px; }
-      .notes { border-radius: 9px; padding: 9px; font-size: 9px; }
-      .footer { flex-direction: column; gap: 4px; margin-top: 14px; padding-top: 9px; font-size: 8px; }
+      .receipt {
+        width: 100%;
+        max-width: none;
+        overflow: visible;
+        border: 1px solid #e6dfd2;
+        box-shadow: none;
+        border-radius: 12px;
+        break-inside: avoid;
+      }
+      .top {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        padding: 22px 24px;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .store-name { font-size: 23px; }
+      .order-code { font-size: 20px; }
+      .content { padding: 22px 24px 24px; }
+      .meta { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-bottom: 18px; }
+      .meta-box { min-height: 74px; border-radius: 10px; padding: 10px; break-inside: avoid; }
+      .meta-label { font-size: 9px; margin-bottom: 6px; }
+      .meta-value { font-size: 12px; overflow-wrap: anywhere; }
+      .meta-sub { font-size: 10px; overflow-wrap: anywhere; }
+      .section { margin-top: 18px; break-inside: avoid; }
+      .section h3 { font-size: 10px; margin-bottom: 8px; }
+      table { table-layout: fixed; font-size: 11px; page-break-inside: auto; }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; page-break-inside: avoid; }
+      th { padding: 8px 7px; font-size: 8px; letter-spacing: .05em; }
+      td { padding: 9px 7px; }
+      th:first-child, td:first-child { width: 44%; }
+      .item-name { overflow-wrap: anywhere; }
+      .summary { grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; margin-top: 14px; break-inside: avoid; }
+      .terms { min-height: 92px; border-radius: 10px; padding: 11px; font-size: 10px; }
+      .totals {
+        border-radius: 12px;
+        padding: 12px;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .totals-row { font-size: 11px; margin-bottom: 7px; }
+      .totals-row.total { font-size: 16px; }
+      .notes { border-radius: 10px; padding: 11px; font-size: 10px; break-inside: avoid; }
+      .footer { margin-top: 16px; padding-top: 10px; font-size: 9px; }
     }
     .action-bar {
       display: flex;
