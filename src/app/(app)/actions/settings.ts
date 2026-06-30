@@ -11,15 +11,13 @@ export async function updateStoreSettingsAction(formData: FormData) {
   const parsed = z.object({
     storeName: z.string().min(2).max(60),
     storeTagline: z.string().max(120).optional().or(z.literal("")),
-    loginImageUrl: z.string().optional().or(z.literal("")),
-    cashBalance: z.coerce.number().min(0).default(0)
+    loginImageUrl: z.string().optional().or(z.literal(""))
   }).parse(Object.fromEntries(formData));
 
   await updateStoreSettings({
     storeName: parsed.storeName.trim(),
     storeTagline: parsed.storeTagline?.trim() || null,
-    loginImageUrl: parsed.loginImageUrl?.trim() || null,
-    cashBalance: parsed.cashBalance
+    loginImageUrl: parsed.loginImageUrl?.trim() || null
   });
 
   revalidatePath("/", "layout");
@@ -77,7 +75,7 @@ export async function saveFinanceCategoriesAction(formData: FormData) {
   await prisma.storeSettings.upsert({
     where: { id: 1 },
     update: { financeCategories: categories },
-    create: { id: 1, storeName: "Minha Loja", cashBalance: 0, financeCategories: categories }
+    create: { id: 1, storeName: "Minha Loja", financeCategories: categories }
   });
 
   revalidatePath("/configuracoes");

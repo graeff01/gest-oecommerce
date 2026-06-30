@@ -67,7 +67,7 @@ export async function buildClientBackup(clientId: string) {
     purchaseItems: purchaseItems.map((i) => decimalToNumber(i, ["unitCost"])),
     financialTransactions: transactions.map((t) => decimalToNumber(t, ["amount"])),
     stockMovements: movements,
-    settings: settings ? decimalToNumber(settings, ["cashBalance"]) : null
+    settings: settings ?? null
   };
 
   const itemCounts = {

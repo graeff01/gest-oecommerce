@@ -12,6 +12,7 @@ export async function getDashboardData() {
   const now = new Date();
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -28,7 +29,7 @@ export async function getDashboardData() {
   sevenDaysAgo.setDate(now.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
-  const [ordersMonth, ordersWeek, transactions, allTransactionTotals, lowStockIds, customers, customerRows, productRows, orderItems, openInstallments, recentOrders, settings] =
+  const [ordersMonth, ordersWeek, transactions, lowStockIds, customers, customerRows, productRows, orderItems, openInstallments, recentOrders, settings, receivableMonthAgg] =
     await Promise.all([
       // Pedidos do mês para métricas financeiras
       prisma.order.findMany({
@@ -41,7 +42,6 @@ export async function getDashboardData() {
         select: { createdAt: true, total: true }
       }),
       prisma.financialTransaction.findMany({ where: { deletedAt: null, createdAt: { gte: startOfMonth } } }),
-      prisma.financialTransaction.groupBy({ by: ["type"], where: { deletedAt: null }, _sum: { amount: true } }),
       // Raw query: variantes onde estoque <= minStock
       prisma.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM "ProductVariant" WHERE "stockQuantity" <= "minStock" ORDER BY "stockQuantity" ASC LIMIT 8
@@ -91,7 +91,13 @@ export async function getDashboardData() {
         orderBy: { createdAt: "desc" },
         take: 5
       }),
-      prisma.storeSettings.findUnique({ where: { id: 1 } })
+      prisma.storeSettings.findUnique({ where: { id: 1 } }),
+      // A receber este mês: parcelas de crediário em aberto que vencem dentro do mês atual
+      prisma.installment.aggregate({
+        where: { paidAt: null, dueDate: { gte: startOfMonth, lt: startOfNextMonth } },
+        _sum: { amount: true },
+        _count: true
+      })
     ]);
 
   const lowStock = lowStockIds.length
@@ -113,10 +119,9 @@ export async function getDashboardData() {
     .flatMap((order) => order.items)
     .reduce((sum, item) => sum + Number(item.costPrice) * item.quantity, 0);
 
-  const allRevenue = Number(allTransactionTotals.find((t) => t.type === "REVENUE")?._sum.amount ?? 0);
-  const allExpenses = Number(allTransactionTotals.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
-  const initialBalance = Number(settings?.cashBalance ?? 0);
-  const currentBalance = initialBalance + allRevenue - allExpenses;
+  // A receber este mês via crediário (parcelas em aberto que vencem no mês atual)
+  const receivableThisMonth = Number(receivableMonthAgg._sum.amount ?? 0);
+  const receivableThisMonthCount = receivableMonthAgg._count;
 
   // Chart: agrupa vendas por dia local (sem problema de timezone UTC)
   const chart = Array.from({ length: 7 }, (_, index) => {
@@ -258,8 +263,8 @@ export async function getDashboardData() {
       profit: salesTotal - estimatedCost - expenses,
       customers,
       lowStock: lowStock.length,
-      currentBalance,
-      initialBalance
+      receivableThisMonth,
+      receivableThisMonthCount
     },
     chart,
     lowStock,

@@ -9,7 +9,6 @@ type Props = {
     storeName: string;
     storeTagline: string | null;
     loginImageUrl: string | null;
-    cashBalance: number;
   };
 };
 
@@ -17,7 +16,6 @@ export function StoreSettingsForm({ initialData }: Props) {
   const [storeName, setStoreName] = useState(initialData.storeName);
   const [storeTagline, setStoreTagline] = useState(initialData.storeTagline ?? "");
   const [loginImageUrl, setLoginImageUrl] = useState(initialData.loginImageUrl ?? "");
-  const [cashBalance, setCashBalance] = useState(String(initialData.cashBalance ?? 0));
 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -31,7 +29,6 @@ export function StoreSettingsForm({ initialData }: Props) {
     data.append("storeName", overrides.storeName ?? storeName);
     data.append("storeTagline", overrides.storeTagline ?? storeTagline);
     data.append("loginImageUrl", overrides.loginImageUrl ?? loginImageUrl);
-    data.append("cashBalance", overrides.cashBalance ?? cashBalance);
     return data;
   }
 
@@ -106,22 +103,6 @@ export function StoreSettingsForm({ initialData }: Props) {
             maxLength={120}
           />
           <span className="text-[0.7rem] font-normal text-subtle">{storeTagline.length}/120</span>
-        </label>
-
-        <label className="label">
-          Saldo inicial em caixa (R$)
-          <input
-            className="field"
-            type="number"
-            min="0"
-            step="0.01"
-            value={cashBalance}
-            onChange={(event) => setCashBalance(event.target.value)}
-            placeholder="0,00"
-          />
-          <span className="text-[0.7rem] font-normal text-subtle">
-            Valor que já estava no caixa antes de começar a usar o sistema. O saldo exibido no dashboard é este valor mais as entradas menos as saídas registradas.
-          </span>
         </label>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">

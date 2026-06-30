@@ -17,7 +17,7 @@ async function main() {
     update: {
       ...(migratedImageUrl ? { loginImageUrl: migratedImageUrl } : {})
     },
-    create: { id: 1, storeName: STORE_NAME, cashBalance: 0 }
+    create: { id: 1, storeName: STORE_NAME }
   });
 
   const userCount = await prisma.user.count();

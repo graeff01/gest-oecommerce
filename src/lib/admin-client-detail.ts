@@ -52,7 +52,6 @@ export type ClientDetail = {
   revenue7: number;
   revenue30: number;
   averageTicket: number;
-  cashBalance: number;
   ordersByStatus: { status: string; count: number }[];
   lowStockCount: number;
 } | {
@@ -73,8 +72,7 @@ export async function fetchClientDetail(databaseUrl: string): Promise<ClientDeta
       products,
       orderItems30,
       orderStatuses,
-      lowStock,
-      settings
+      lowStock
     ] = await Promise.all([
       prisma.order.findMany({
         where: { status: { not: "CANCELED" } },
@@ -110,8 +108,7 @@ export async function fetchClientDetail(databaseUrl: string): Promise<ClientDeta
         _count: { _all: true },
         where: { createdAt: { gte: ago30 } }
       }),
-      prisma.productVariant.count({ where: { stockQuantity: { lte: 2 } } }),
-      prisma.storeSettings.findFirst()
+      prisma.productVariant.count({ where: { stockQuantity: { lte: 2 } } })
     ]);
 
     // Recent orders
@@ -198,7 +195,6 @@ export async function fetchClientDetail(databaseUrl: string): Promise<ClientDeta
       revenue7,
       revenue30,
       averageTicket,
-      cashBalance: settings?.cashBalance ? Number(settings.cashBalance) : 0,
       ordersByStatus,
       lowStockCount: lowStock
     };

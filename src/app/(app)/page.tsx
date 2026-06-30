@@ -38,18 +38,22 @@ export default async function DashboardPage() {
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Saldo em caixa"
-          value={money(data.metrics.currentBalance)}
-          detail={data.metrics.currentBalance >= 0 ? "Caixa positivo" : "Caixa negativo"}
-          icon={Wallet}
-          tone={data.metrics.currentBalance >= 0 ? "success" : "danger"}
-        />
-        <MetricCard
           label="Vendas do mês"
           value={money(data.metrics.salesTotal)}
-          detail="Pedidos pagos e ativos"
+          detail="Valor total das vendas"
           icon={ReceiptText}
           tone="primary"
+        />
+        <MetricCard
+          label="A receber este mês"
+          value={money(data.metrics.receivableThisMonth)}
+          detail={
+            data.metrics.receivableThisMonthCount > 0
+              ? `${data.metrics.receivableThisMonthCount} parcela${data.metrics.receivableThisMonthCount === 1 ? "" : "s"} de crediário`
+              : "Sem parcelas no mês"
+          }
+          icon={Wallet}
+          tone="success"
         />
         <MetricCard
           label="Receitas do mês"

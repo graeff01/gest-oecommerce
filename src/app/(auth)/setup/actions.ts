@@ -40,7 +40,7 @@ export async function setupAction(_: unknown, formData: FormData) {
     await tx.storeSettings.upsert({
       where: { id: 1 },
       update: { storeName },
-      create: { id: 1, storeName, cashBalance: 0 }
+      create: { id: 1, storeName }
     });
 
     await tx.auditLog.create({

@@ -58,7 +58,7 @@ export async function GET() {
       purchaseItems: purchaseItems.map((i) => ({ ...i, unitCost: Number(i.unitCost) })),
       financialTransactions: transactions.map((t) => ({ ...t, amount: Number(t.amount) })),
       stockMovements: movements,
-      settings: settings ? { ...settings, cashBalance: Number(settings.cashBalance) } : null
+      settings: settings ?? null
     }
   };
 
